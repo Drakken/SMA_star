@@ -1,0 +1,11 @@
+opam-version: "2.0"
+name: "sliding_puzzle"
+version: "0.0"
+synopsis: "a test case for SMA_star search"
+description: """
+An implementation of sliding puzzles (e.g. the 15 puzzle, etc.).
+Works with SMA_star and DEPQ. 
+"""
+authors: "Dan Bensen <danbensen@att.net>"
+license: "MIT"
+

@@ -1,0 +1,75 @@
+
+
+matching leaf nodes in the two heaps after a value in one of them is heapified
+This is nontrivial when the destination has an extra value and that value is involved.
+
+sa = size of heap a	pa = parent of sa
+sb = size of heap b	pb = parent of sb
+@ = node
+X = empty cell (no node)
+. . . = imaginary links between the heaps
+
+size of a is even, size of b is odd
+pa = pb
+pa is matched with sb = n_right pa
+                            pa
+   heap a                 /  .
+  (source)              sa   .  X
+                         .    \ 
+                         .     .
+                         .     .    
+                         @     sb
+   heap b                 \    /
+(destination)               pb
+
+
+size of a is odd, size of b is even
+pa is matched with sb = n_left pa
+                              ___@___
+                             /       \
+                           pa         pb
+   heap a                 /  \        .
+  (source)               @    sa   X  .  X
+                         .    .      /
+                         .    .     .
+                         .    .     .
+                         @    @    sb    X
+   heap b                 \  /       \
+(destination)               @         pb
+                             \       /
+                              \__@__/
+
+============================================================================
+nb as a function of na in Q.maybe_swap
+--------------------------------------
+              a is odd             a is even
+              b is even            b is odd          sa = sb
+----------------------------------------------------------------
+         |                  .                   .               |
+na > pb  |    nb = na       .      nb = na      .    nb = na    |  
+         |                  .                   .               | 
+---------|------------------                    .               |  
+na = pb  | nb = n_left na   |-----------------------------------|
+---------|------------------|  nb = n_right na  |    no swap    |   pa = pb
+na = pa  |    no swap       |-----------------------------------|          
+---------|------------------                    .               |    
+         |                  .                   .               |     
+na < pa  |    no swap       .      no swap      .    no swap    |      
+         |                  .                   .               |     
+----------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,10 @@
+opam-version: "2.0"
+name: "Element"
+version: "0.0"
+synopsis: "the type of element modules for queues used in SMA_star"
+description: """
+Requires location info for fixing the queue after a node's priority (i.e. f-cost) changes.
+"""
+authors: "Dan Bensen <danbensen@att.net>"
+license: "MIT"
+

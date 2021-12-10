@@ -1,0 +1,11 @@
+opam-version: "2.0"
+name: "SMA_star"
+version: "0.0"
+synopsis: "SMA* search algorithm with stubs"
+description: """
+SMA* search in OCaml. Retains high-cost nodes as stubs containing the action and the cost.
+This speeds up regeneration and enables lowest-cost stubs to be selected first.
+"""
+authors: "Dan Bensen <danbensen@att.net>"
+license: "MIT"
+

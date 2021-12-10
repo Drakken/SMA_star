@@ -1,0 +1,40 @@
+
+SMA* search pseudocode
+
+Let q be a queue.
+
+Let root be a node containing the starting-point state of the problem.
+
+Insert root into q.
+
+begin loop
+
+   If q is empty, return failure.
+
+   Let n be the deepest cheapest node in q.
+
+   If n is a goal, return the action path that leads from root to n.
+
+   Let s be the next ungenerated successor of n.
+
+   If s isn't a goal and is at the maximum search depth, set its cost to infinity.
+   Otherwise, set the f-cost of s to the greater of (f-cost n) and (g(s) + h(s)).
+
+   If all of n's successors have been generated,
+      update the f-cost of n and its ancestors if necessary.
+
+   If all of n's successors are in q, drop n from q.
+
+   If memory is full,
+    WITH STUBS: delete the stub's parent if it's not good enough
+      drop the shallowest, highest-f-cost node in q,
+      remove it from its parent's list of successors,
+      and insert its parent into q if necessary.
+
+   Insert s into q.
+
+end loop
+
+
+
+

@@ -1,0 +1,7 @@
+(executable
+ (name        sliding_puzzle)
+ (libraries SMA_star TestQ)
+ (modes byte exe)
+)
+
+;(test (name my_test_program))
