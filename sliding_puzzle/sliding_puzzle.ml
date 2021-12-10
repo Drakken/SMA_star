@@ -20,40 +20,7 @@ open Printf
 
 let third (_,_,x) = x
 
-
-module A = struct
-
-  include Array
-
-  let swap_cells b n1 n2 =
-    let tmp = b.(n1) in
-    b.(n1) <- b.(n2);
-    b.(n2) <- tmp
-
-end
-
-
-module L = struct
-
-  include List
-
-  let sum = function
-    | x::xs -> fold_left (+) x xs
-    | [] -> invalid_arg "sum: empty list"
-
-  let combine f xs = 
-    match xs with
-    | [] ->  invalid_arg "can't combine empty list"
-    | x::xs -> fold_left f x xs  
-
-  let interleave f z = combine (fun acc x -> f (f acc z) x)
-
-  let fold_times f x0 n =
-    let rec fold x i = if i=0 then x else fold (f x) (i-1)
-    in fold x0 n
-
-end
-
+open Utils
 
 module type Typeof_Params = sig
   val size: int
@@ -76,6 +43,12 @@ module Puzzle (Params: Typeof_Params) = struct
     | Below -> 'B'
     | Right -> 'R'
     | Left  -> 'L'
+
+  let string_of_action = function
+    | Above -> "Above"
+    | Below -> "Below"
+    | Right -> "Right"
+    | Left  -> "Left"
 
   let[@inline] rowcol n = n / size, n mod size
 
@@ -150,15 +123,13 @@ module Puzzle (Params: Typeof_Params) = struct
 
   let make_action_generator = SMA_star.Generator.of_list actions
 
-  let string_of_action = function
-    | Above -> "Above"
-    | Below -> "Below"
-    | Right -> "Right"
-    | Left  -> "Left"
+  let tilestr n = if n = length then " " else string_of_int n
+
+  let tilestr3 n = if n = length then "  _" else sprintf "%3d" n
 
   let string_of_row board r =
     let n0 = index (r,0) in
-    A.(sub board n0 size |> map (sprintf "%3d")
+    A.(sub board n0 size |> map tilestr3
                          |> fold_left (^) "")
 
   let string_of_state {n_empty;board} =
@@ -207,8 +178,6 @@ module Puzzle (Params: Typeof_Params) = struct
   let string_of_rowcol r c = sprintf "(%d,%d)" (r+1) (c+1)
 
   let print_actions actns = L.(iter print_char (map char_of_action actns))
-
-  let tilestr n = if n = length then " " else string_of_int n
 
 end
 

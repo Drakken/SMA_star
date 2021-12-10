@@ -6,42 +6,7 @@
 
 
 open Printf
-
-let (>>= ) xo f = match xo with Some x -> f x | None -> None
-let (>>=!) xo f = match xo with Some x -> f x | None -> ()
-
-let from_some = function
-  | None -> invalid_arg "None"
-  | Some x -> x
-
-let make_counter n0 =
-  let n = ref (n0-1) in
-  fun () -> n := !n + 1; !n
-
-let new_id = make_counter 0
-
-
-module L = struct
-
-  include List
-
-  let remove_if f xs =
-    let rec del rev_xs = function
-      | x::xs -> if f x
-                 then rev_append rev_xs xs
-                 else del (x :: rev_xs) xs
-      | [] -> raise Not_found
-      in
-      del [] xs
-
-  let remove_object x xs = remove_if ((==) x) xs
-
-  let min_of f = function
-  | x::xs -> fold_left (fun a y -> min a (f y)) (f x) xs
-  | [] -> invalid_arg "empty list"
-
-end
-
+open Utils
 
 module Generator = struct
 
