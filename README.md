@@ -7,10 +7,10 @@ It's intended to be production quality at some point in time, but it's probably 
 The code mostly follows the design described in Artificial Intelligence: A Modern Approach, 
 by Stuart Russell and Peter Norvig. The most important difference is that, instead of 
 deleting high-cost nodes that don't fit in the queue, this implementation retains them as 
-stubs that contain the node's action and f-cost. This makes regenerating nodes MUCH easier, 
-and it also enables the algorithm to regenerate the most promising nodes first. Ineligible 
-nodes, i.e. those with "infinite" cost, are deleted completely; they can't be regenerated 
-unless the parent node is deleted and regenerated.
+stubs that contain the node's action and f-cost. This makes regenerating nodes MUCH easier
+than if they're literally deleted, and it also enables the algorithm to regenerate the most 
+promising nodes first. Ineligible nodes, i.e. those with "infinite" cost, are deleted com-
+pletely; they can't be regenerated unless the parent node is deleted and regenerated.
 
 SMA_star.Make can accept a user-supplied queue module, but the queue has to inform nodes 
 whenever their locations change, because a parent node's f-cost increases when the minimum 
@@ -19,9 +19,6 @@ array-based DEP queues.
 
 
 User Guide
-
-
-Utils			a module for utility functions
 
 
 Typeof_Problem		the type of user-supplied modules that define search applications
@@ -53,7 +50,7 @@ Typeof_Problem		the type of user-supplied modules that define search application
 
 	is_goal: state -> bool
 
-				is_goal s determines whether the state s is an acceptable goal state.
+				is_goal s determines whether s is an acceptable goal state.
 
 	dg_cost_of_action: state -> action -> int
 
@@ -68,40 +65,46 @@ Typeof_Problem		the type of user-supplied modules that define search application
 	string_of_state:  state  -> string
 
 
-Generator		a module for creating action generators
+Generator		a module for creating thunk generators
 
-			Each function in this module returns a thunk that will be used
-			to generate the actions that can lead from a given state to
-			its successors. The user module (see below) will supply a single 
-			generator function for the problem being solved, and the generator 
-			function will create an action generator for each state.
-			The functions are actually polymorphic, but, for the sake of 
-			simplicity, we'll pretend they only apply to states and actions
-			as described in the user module.
+			For each state encountered in a search, SMA_star requires a thunk 
+			that returns an allowable action from that state each time it's called. 
+			make_action_generator takes the state and returns the thunk, and 
+			each function in this module converts some other kind of user- 
+			supplied generator (or related function) into a thunk generator.
 
-	t = unit -> action option
+			These functions are actually polymorphic, but, for the sake of simplicity,
+			we'll pretend they only apply to states and actions as described in the user 
+			module. For the real signatures, replace state with 'a and action with 'b.
+
+	action t = unit -> action option
 
 				the type of action generators, i.e. thunks that return actions
 
 				An action generator returns (Some a) as long as there's 
 				at least one action (a) that hasn't been generated yet, 
 				and then returns None the next time it's called.
-				
 
-	of_list:  (state -> action list)  -> state -> unit -> action option
-	of_array: (state -> action array) -> state -> unit -> action option
+	of_list_maker:  (state -> action list)  -> state -> unit -> action option
+	of_array_maker: (state -> action array) -> state -> unit -> action option
 
-	of_count_function: ('a -> int -> 'b option) -> 'a -> unit -> 'b option
+				If you have a function f that returns a list (or array) of actions,
+				of_list_maker f (or of_array_maker f) will return a thunk generator.
 
-				of_count_function f s creates an action generator from a stream function
+	of_parser_maker: (state -> int -> action option) -> state -> unit -> action option
 
-				f s must return a function that can be passed to Stream.from
-				to create a stream of actions from the state s.
+				The user-supplied function takes a state and returns a function 
+				that can be passed to Stream.from to create an action stream.
 
-	of_stepper_and_value: ('a -> ('b -> ('c * 'b) option) * 'b) -> 'a -> unit -> 'c option
+	of_stepper_and_value_maker:
+		(state -> ('c -> (action * 'c) option) * 'c) -> state -> unit -> action option
 
-	(roll your own)
+				The user-supplied function returns a function and an initial value
+				that can be passed to Seq.unfold to create an action sequence.
 
+	roll your own		You can think of a thunk generator as a generator of parsers that
+				don't take integers, or a generator of stepping functions that 
+				don't need explicit initial values.
 
 
 Element.T		the type of modules that can be used in the queue
@@ -116,8 +119,8 @@ Element.T		the type of modules that can be used in the queue
 	beats x y	beats takes two elements and returns true iff the first one
 			belongs higher in the queue than the second on.
 
-	getloc x	Getter and setter for element's 	
-	setloc x n	integer location in the queue.
+	getloc x	Getter and setter for an element's integer location in the queue.	
+	setloc x n	This is for fixing the queue after the element's f-cost is updated.
 
   end
 

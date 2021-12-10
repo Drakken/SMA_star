@@ -8,6 +8,8 @@
 open Printf
 open Utils
 
+let new_id = make_counter 0
+
 module Generator = struct
 
   type 'a t = unit -> 'a option
@@ -17,9 +19,9 @@ module Generator = struct
     let s = from f in 
     fun () -> try Some (next s) with Failure -> None
 
-  let of_count_function make_f p = of_stream_function (make_f p)
+  let of_parser_maker make_f p = of_stream_function (make_f p)
 
-  let of_array make_array p =
+  let of_array_maker make_array p =
     let a = make_array p in
     let l = Array.length a in
     of_stream_function (fun n -> if n<l then Some a.(n) else None)
@@ -32,9 +34,9 @@ module Generator = struct
       | Nil -> None
       | Cons (x,s) -> sref := s; Some x
 
-  let of_stepper_and_value make_fx p = of_sequence_function (make_fx p)
+  let of_stepper_and_value_maker make_fx p = of_sequence_function (make_fx p)
 
-  let of_list make_list p =
+  let of_list_maker make_list p =
     let l = make_list p in
     let f = function
       | x::xs -> Some (x,xs)

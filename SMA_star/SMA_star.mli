@@ -4,13 +4,13 @@ module Generator:
   sig
     type 'a t = unit -> 'a option
 
-    val of_count_function: ('a -> int -> 'b option) -> 'a -> unit -> 'b option
+    val of_parser_maker: ('a -> int -> 'b option) -> 'a -> unit -> 'b option
 
-    val of_stepper_and_value: ('a -> ('b -> ('c * 'b) option) * 'b) -> 'a -> unit -> 'c option
+    val of_stepper_and_value_maker: ('a -> ('b -> ('c * 'b) option) * 'b) -> 'a -> unit -> 'c option
 
-    val of_array: ('a -> 'b array) -> 'a -> unit -> 'b option
+    val of_array_maker: ('a -> 'b array) -> 'a -> unit -> 'b option
 
-    val of_list: ('a -> 'b list) -> 'a -> unit -> 'b option
+    val of_list_maker: ('a -> 'b list) -> 'a -> unit -> 'b option
   end
 
 module type Typeof_Problem = sig

@@ -19,8 +19,6 @@ let make_counter n0 =
   let n = ref (n0-1) in
   fun () -> n := !n + 1; !n
 
-let new_id = make_counter 0
-
 
 module A = struct
 

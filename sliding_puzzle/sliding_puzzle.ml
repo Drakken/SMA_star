@@ -22,6 +22,9 @@ let third (_,_,x) = x
 
 open Utils
 
+let new_id = make_counter 0
+
+
 module type Typeof_Params = sig
   val size: int
 end
@@ -121,7 +124,7 @@ module Puzzle (Params: Typeof_Params) = struct
     let actns = L.(map third (filter on_board rcas))
     in (* print_newline(); print_actions actns;*) actns
 
-  let make_action_generator = SMA_star.Generator.of_list actions
+  let make_action_generator = SMA_star.Generator.of_list_maker actions
 
   let tilestr n = if n = length then " " else string_of_int n
 
