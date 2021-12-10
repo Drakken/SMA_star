@@ -6,7 +6,7 @@
 
 exception Not_found_in of string
 
-let not_found_in str = raise Not_found_in str
+let not_found_in str = raise (Not_found_in str)
 
 let (>>= ) xo f = match xo with Some x -> f x | None -> None
 let (>>=!) xo f = match xo with Some x -> f x | None -> ()

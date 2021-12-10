@@ -3,7 +3,7 @@ name: "Uils"
 version: "0.0"
 synopsis: "utility functions"
 description: """
-Includes extensions to List and Array.
+Includes extensions to List and Array, counters, option functions, and not_found_in.
 """
 authors: "Dan Bensen <danbensen@att.net>"
 license: "MIT"

@@ -156,7 +156,7 @@ module Puzzle (Params: Typeof_Params) = struct
 
   let find_blank b =
     let rec find n =
-      if n = length then raise Not_found
+      if n = length then not_found_in "find_blank"
       else if b.(n) = length then n
       else find (n+1)
     in find 0

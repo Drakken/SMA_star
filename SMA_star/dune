@@ -1,7 +1,7 @@
 (library
   (name        SMA_star)
   (public_name SMA_star)
-  (libraries Element)
+  (libraries Utils Element)
 )
 
 ;(test (name my_test_program))
