@@ -1,62 +1,82 @@
 
 
-matching leaf nodes in the two heaps after a value in one of them is heapified
-This is nontrivial when the destination has an extra value and that value is involved.
+LINKING LEAF NODES IN THE QUEUE
 
-sa = size of heap a	pa = parent of sa
-sb = size of heap b	pb = parent of sb
-@ = node
-X = empty cell (no node)
-. . . = imaginary links between the heaps
+The leaf nodes in the two heaps of a DEP queue are compared with each other,
+effectively forming complete paths betweeen the top and bottom of the queue.
+A value in one heap may have to be transferred to the other one when the value's 
+heap is heapified. In most cases, leaves with equal indexes are connected, but 
+there are nontrivial corner cases near the last elements of the heaps when the 
+destination has an extra value and that value is involved.
 
-size of a is even, size of b is odd
+
+KEY:
+na: the index of the node in heap a being matched with a node in heap b
+sa: size of heap a	pa: parent of sa
+sb: size of heap b	pb: parent of sb
+@: uninvolved node
+X: empty or non-existent cell (no node)
+. . . : imaginary link between the heaps (nodes with the same index)
+. . 
+    \ . . : imaginary link between nodes with different indexes
+
+
+When the size of a is even
+ and the size of b is odd
+--------------------------
 pa = pb
-pa is matched with sb = n_right pa
+na = pa is matched with sb = n_right na
+
                             pa
    heap a                 /  .
   (source)              sa   .  X
                          .    \ 
                          .     .
                          .     .    
-                         @     sb
-   heap b                 \    /
-(destination)               pb
+   heap b                @     sb
+(destination)             \    /
+                            pb
 
 
-size of a is odd, size of b is even
-pa is matched with sb = n_left pa
-                              ___@___
-                             /       \
-                           pa         pb
-   heap a                 /  \        .
-  (source)               @    sa   X  .  X
-                         .    .      /
-                         .    .     .
-                         .    .     .
-                         @    @    sb    X
-   heap b                 \  /       \
-(destination)               @         pb
-                             \       /
-                              \__@__/
+When the size of a is odd
+ and the size of b is even
+--------------------------
+na = pb is matched with sb = n_left na
 
-============================================================================
+                          ___@___
+                         /       \
+                       pa         pb
+   heap a             /  \        .
+  (source)           @    sa   X  .  X
+                     .    .      /
+                     .    .     .
+                     .    .     .
+                     @    @    sb    X
+   heap b             \  /       \
+(destination)           @         pb
+                         \       /
+                          \__@__/
+
+
+================================================================================
 nb as a function of na in Q.maybe_swap
 --------------------------------------
               a is odd             a is even
-              b is even            b is odd          sa = sb
-----------------------------------------------------------------
-         |                  .                   .               |
-na > pb  |    nb = na       .      nb = na      .    nb = na    |  
-         |                  .                   .               | 
----------|------------------                    .               |  
-na = pb  | nb = n_left na   |-----------------------------------|
----------|------------------|  nb = n_right na  |    no swap    |   pa = pb
-na = pa  |    no swap       |-----------------------------------|          
----------|------------------                    .               |    
-         |                  .                   .               |     
-na < pa  |    no swap       .      no swap      .    no swap    |      
-         |                  .                   .               |     
-----------------------------------------------------------------
+              b is even            b is odd          sa = sb         notes
+-------------------------------------------------------------------------------
+         |                  .                   .               |              |
+na > pb  |     nb = na      .      nb = na      .    nb = na    |   na > pb    |
+         |                  .                   .               |              |
+---------|------------------                    .               |              |
+na = pb  |  nb = n_left na  |-----------------------------------|--------------|
+---------|------------------|  nb = n_right na  |    no swap    |   pa = pb    |
+na = pa  |     no swap      |-----------------------------------|--------------|    
+---------|------------------                    .               |              |
+         |                  .                   .               |   internal   |
+na < pa  |     no swap      .      no swap      .    no swap    | branch nodes | 
+         |                  .                   .               | (2 children) |
+         |                  .                   .               |              |
+-------------------------------------------------------------------------------
 
 
 
