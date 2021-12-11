@@ -208,11 +208,11 @@ module Make (E: Element.T) = struct
     in
       let sa = a.H.size
       and sb = b.H.size in
-      let pb = n_parent sb in          (*  find the node in b (if any)  *)
-      if na > pb then swap na          (* that na has to be compared to *)
-      else if sa < sb && na = pb
-      then if is_odd sa
-      then swap (n_left  na)
+      let pb = n_parent sb in
+      if na > pb then swap na
+      else if sa < sb && na = pb       (* find the node in b (if any) that *)
+      then if is_odd sa                (*  a.:(na) has to be compared to   *)
+      then swap (n_left  na)           (*    see ascii art for details     *)
       else swap (n_right na)
 
   let pop_n_swap a b =
