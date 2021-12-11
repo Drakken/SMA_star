@@ -10,6 +10,9 @@ open Utils
 
 let new_id = make_counter 0
 
+let try_or_die str f x = try f x with _ -> not_found_in str
+
+
 module Generator = struct
 
   type 'a t = unit -> 'a option
@@ -182,14 +185,16 @@ module Make (Prob: Typeof_Problem)
       let state = next_state p action in
       make_child_node id p action state cost (gcost p action)
 
-    let node_of_action p a max_depth = 
-      let state = next_state p a in
-      if not (Prob.is_goal state) && p.depth = max_depth - 1
-      then None
-      else
+    let state_of_action p a max_depth = 
+      let s = next_state p a in
+      if Prob.is_goal s || p.depth < max_depth - 1
+      then Some s
+      else None
+
+    let node_of_state p a s = 
       let gcost = gcost p a in
       let fcost = max p.fcost (gcost + Prob.h_cost_to_goal state)
-      in Some (make_child_node (new_id()) p a state fcost gcost)
+      in Some (make_child_node (new_id()) p a s fcost gcost)
 
     let[@inline] no_fulls n = n.child_nodes = []
     let[@inline] no_stubs n = n.child_stubs = []
@@ -224,7 +229,9 @@ module Make (Prob: Typeof_Problem)
     let[@inline]    add_child_node c =   push_child c.parent c
     let[@inline]    add_child_stub c = insert_stub  c.parent (stub_of_node c)
 
-    let stubify_child c = delete_child_node c; add_child_stub c
+    let stubify_child c =
+     delete_child_node c;
+     add_child_stub c
 
     let beats a b = a.fcost < b.fcost || (a.fcost = b.fcost && a.depth > b.depth)
 
@@ -242,6 +249,8 @@ module Make (Prob: Typeof_Problem)
   let top q = from_some (Q.otop q)
   let pop q = from_some (Q.opop q)
 
+  let[@inline] not_full q = not (Q.is_full q)
+
   let bottom q =
     match Q.obottom q with
     | Some x -> x
@@ -253,31 +262,41 @@ module Make (Prob: Typeof_Problem)
     stubify_old_child q c p = 
       let p_had_fulls_only = has_fulls_only p in          (* not in the queue *)
       stubify_child c;
-      if p_had_fulls_only then ignore (try_to_insert q p)
+      if p_had_fulls_only then ignore (try_to_insert_old q p)
   and
-    drop_and_try_again q n =
+    drop_and_try_old q n =
       Q.odrop q >>=! stubify_node q;
       try_to_insert q n
   and
-    try_to_insert q n =
-      if not (Q.is_full q) then (Q.insert q n; true)
+    try_to_insert_old q n =
+      if not_full q then (Q.insert q n; true)
       else if beats n (bottom q) then drop_and_try_again q n
       else (stubify_node q n; false)
 
+  let rec
+    drop_and_try_new q n =
+      Q.odrop q >>=! stubify_node q;
+      try_to_insert_new q n
+  and
+    try_to_insert_new q n =
+      if not_full q then (Q.insert q n; true)
+      else if beats n (bottom q) then drop_and_try_new q n
+      else (add_stub q n; false)
+
   let insert_or_die q n =
-      if not (Q.is_full q) then (Q.insert q n; true)
-      else beats n (bottom q) && drop_and_try_again q n
+      if not_full q then (Q.insert q n; true)
+      else beats n (bottom q) && drop_and_try_new q n
 
   let add_next_stub p q =
     match p.child_stubs with
-    | [] -> assert (top q == p);
-            ignore (pop q)
+    | [] -> assert (top q == p); print_endline "add_next_stub: parent w/only fulls at top of q";
+            ignore (pop q) what if it doesn't have any fulls?
     | x::xs -> p.child_stubs <- xs;
                if xs = [] then assert (pop q == p);
                let n = node_of_stub p x in
                if insert_or_die q n
                then add_child_node n
-               else (stubify_child n; ignore (pop q))
+               else (add_child_stub n; ignore (pop q))?
 
 
   let rec update_fcost q n =
@@ -290,25 +309,34 @@ module Make (Prob: Typeof_Problem)
     end
 
 
-  let rec delete_node_and_check_parent n =
+  let rec
+      delete_node_and_check_parent n =
     if has_no_children n
-    then (delete_child_node n; do_parent n delete_node_and_check_parent)
+    then delete_child_and_check_ancestors n
+  and
+      delete_child_and_check_ancestors n =
+    delete_child_node n;
+    do_parent n delete_node_and_check_parent
 
-  let rec add_next_action f n q max_depth =
-    match f () with
-    | Some a ->
-        begin
-          match node_of_action n a max_depth with
-          | Some c -> if insert_or_die q c
-                      then add_child_node c
-                      else ignore (pop q)
-          | None -> add_next_action f n q max_depth       (* no node = infinite cost *)
+
+  let add_next_action next_action n q max_depth =
+    let rec add_next () =
+      match next_action () with
+      | Some a -> begin
+          match state_of_action n a max_depth
+          with
+          | Some s -> let c = node_of_state n a s in
+                      if try_to_insert_new q c then add_child c
+                      else (add_stub p a; add_next ())
+          | None -> add_next ()                   (* no child = infinite cost *)
         end
-    | None ->                             (* all children have been generated *)
-        n.next_action_o <- None;
-        if has_no_children n
-        then (delete_child_node n; do_parent n delete_node_and_check_parent)
-        else update_fcost q n
+      | None ->                             (* all children have been generated *)
+          n.next_action_o <- None;
+          if has_no_children n
+          then delete_child_and_check_ancestors n
+          else update_fcost q n
+    in add_next ()
+
 
   let add_next_child p q max_depth =
     match p.next_action_o with
