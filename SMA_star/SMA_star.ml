@@ -10,7 +10,7 @@ open Utils
 
 let new_id = make_counter 0
 
-(* let try_or_die str f x = try f x with _ -> not_found_in str *)
+let try_or_die f x str = try f x with _ -> not_found_in str
 
 
 module Generator = struct
@@ -223,7 +223,18 @@ module Make (Prob: Typeof_Problem)
       | ns, [] -> min_node_cost ns
       | ns,s::_ -> min s.cost (min_node_cost ns)
 
-    let[@inline] delete_child p c = p.child_nodes <- L.remove_object c p.child_nodes
+    let[@inline] delete_child p c =
+    (*  try *)
+        p.child_nodes <- L.remove_object c p.child_nodes
+   (*   with _ ->
+        printf  "child id = %d\n" c.id;
+        printf "parent id = %d\n" p.id;
+        print_string "children ids =";
+        L.iter (fun c -> printf " %d" c.id) p.child_nodes;
+        print_newline()
+   *)
+
+
     let[@inline]   push_child p c = p.child_nodes <- c :: p.child_nodes
     let[@inline] insert_stub  p s = p.child_stubs <- insert_by_cost p.child_stubs s
 
@@ -232,7 +243,7 @@ module Make (Prob: Typeof_Problem)
     let[@inline]    add_child_stub c = insert_stub  c.parent (stub_of_node c)
 
     let stubify_child c =
-     delete_child_node c;
+     try_or_die delete_child_node c "stubify_child";
      add_child_stub c
 
     let beats a b = a.fcost < b.fcost || (a.fcost = b.fcost && a.depth > b.depth)
@@ -248,7 +259,6 @@ module Make (Prob: Typeof_Problem)
 
   let otop q = Q.otop q (* try Some (Q.top q) with _ -> None *)
 
-  let top q = from_some (Q.otop q)
   let pop q = from_some (Q.opop q)
 
   let iggypop q = ignore (pop q)
@@ -285,14 +295,14 @@ module Make (Prob: Typeof_Problem)
   let do_next_stub p q =
     fail_if (no_fulls p) "no children in do_next_stub";
     match p.child_stubs with
-    | [] -> assert (top q == p); print_endline "do_next_stub: parent w/only fulls at top of q";
-            iggypop q
-    | x::xs -> fail_if (min_child_node_cost p <= p.fcost) "the cheapest child should be the top";
-               let n = node_of_stub p x in
-               if xs = [] then fail_if (pop q != p) "do_next_stub: p isn't the top node";   
-               fail_if (not (try_to_insert_new q n)) "stub cost should equal parent cost";
-               p.child_stubs <- xs;
-               add_child_node n
+    | [] -> assert (pop q == p)             (* immediately after actions run out *)
+    | x::xs ->
+        fail_if (min_child_node_cost p <= p.fcost) "the cheapest child should be the top";
+        let n = node_of_stub p x in
+        if xs = [] then assert (pop q == p);   
+        fail_if (not (try_to_insert_new q n)) "stub cost should equal parent cost";
+        p.child_stubs <- xs;
+        add_child_node n
 
 
   let rec update_fcost q n =
@@ -351,20 +361,19 @@ module Make (Prob: Typeof_Problem)
   let search ~queue_size ?max_depth state =
     let root = make_root_node state in
     let q = Q.make queue_size root in
-    let qsize = Q.size q in
     let max_depth =
       match max_depth with
-      | None -> qsize - 1
+      | None -> queue_size - 1
       | Some d ->
-          if d < qsize then d
+          if d < queue_size then d
           else invalid_arg "max depth exceeds queue size"
     in
     let rec loop i n =
-      if true then printf " %d " n.id
 (*
+      if true then printf " id%d " n.id
       else (print_node n; ignore (read_line()))
-*)
 ;
+*)
       assert (not (has_no_children n));
       if Prob.is_goal n.state then Some (action_path n)
       else (do_next_child n q max_depth;
