@@ -10,7 +10,7 @@ open Utils
 
 let new_id = make_counter 0
 
-let try_or_die str f x = try f x with _ -> not_found_in str
+(* let try_or_die str f x = try f x with _ -> not_found_in str *)
 
 
 module Generator = struct
@@ -125,7 +125,7 @@ module Make (Prob: Typeof_Problem)
      ;state: Prob.state
      ;gcost: int
      ;mutable fcost: int
-     ;mutable next_action_o: Prob.action Generator.t option
+     ;mutable next_action_opt: Prob.action Generator.t option
      ;mutable child_nodes: t list
      ;mutable child_stubs: stub list
     }
@@ -151,7 +151,7 @@ module Make (Prob: Typeof_Problem)
        ;depth = 0
        ;action = Prob.trivial_action
        ;state
-       ;next_action_o = Some (Prob.make_action_generator state)
+       ;next_action_opt = Some (Prob.make_action_generator state)
        ;gcost = 0
        ;fcost = Prob.h_cost_to_goal state
        ;child_nodes = []
@@ -174,7 +174,7 @@ module Make (Prob: Typeof_Problem)
      ;fcost
      ;child_nodes = []
      ;child_stubs = []
-     ;next_action_o = Some (Prob.make_action_generator state)
+     ;next_action_opt = Some (Prob.make_action_generator state)
     }
 
     let next_state p a = Prob.next_state p.state a
@@ -193,12 +193,12 @@ module Make (Prob: Typeof_Problem)
 
     let node_of_state p a s = 
       let gcost = gcost p a in
-      let fcost = max p.fcost (gcost + Prob.h_cost_to_goal state)
-      in Some (make_child_node (new_id()) p a s fcost gcost)
+      let fcost = max p.fcost (gcost + Prob.h_cost_to_goal s)
+      in make_child_node (new_id()) p a s fcost gcost
 
     let[@inline] no_fulls n = n.child_nodes = []
     let[@inline] no_stubs n = n.child_stubs = []
-    let[@inline] no_nexts n = n.next_action_o = None
+    let[@inline] no_nexts n = n.next_action_opt = None
 
     let[@inline] has_fulls_only  n = no_stubs n && no_nexts n
     let[@inline] has_no_children n = no_stubs n && no_nexts n && no_fulls n
@@ -212,7 +212,9 @@ module Make (Prob: Typeof_Problem)
         in
         ins [] xs
 
-    let min_node_cost ns = L.min_of (fun n -> n.fcost) ns      
+    let min_node_cost ns = L.min_of (fun n -> n.fcost) ns 
+     
+    let min_child_node_cost n = min_node_cost n.child_nodes     
 
     let min_child_cost n =
       match n.child_nodes,
@@ -249,6 +251,8 @@ module Make (Prob: Typeof_Problem)
   let top q = from_some (Q.otop q)
   let pop q = from_some (Q.opop q)
 
+  let iggypop q = ignore (pop q)
+
   let[@inline] not_full q = not (Q.is_full q)
 
   let bottom q =
@@ -264,84 +268,70 @@ module Make (Prob: Typeof_Problem)
       stubify_child c;
       if p_had_fulls_only then ignore (try_to_insert_old q p)
   and
-    drop_and_try_old q n =
+    drop_and_try_old_again q n =
       Q.odrop q >>=! stubify_node q;
-      try_to_insert q n
+      try_to_insert_old q n
   and
     try_to_insert_old q n =
       if not_full q then (Q.insert q n; true)
-      else if beats n (bottom q) then drop_and_try_again q n
+      else if beats n (bottom q) then drop_and_try_old_again q n
       else (stubify_node q n; false)
 
-  let rec
-    drop_and_try_new q n =
-      Q.odrop q >>=! stubify_node q;
-      try_to_insert_new q n
-  and
-    try_to_insert_new q n =
+  let rec try_to_insert_new q n =
       if not_full q then (Q.insert q n; true)
-      else if beats n (bottom q) then drop_and_try_new q n
-      else (add_stub q n; false)
+      else beats n (bottom q)
+           && (Q.odrop q >>=! stubify_node q; try_to_insert_new q n)
 
-  let insert_or_die q n =
-      if not_full q then (Q.insert q n; true)
-      else beats n (bottom q) && drop_and_try_new q n
-
-  let add_next_stub p q =
+  let do_next_stub p q =
+    fail_if (no_fulls p) "no children in do_next_stub";
     match p.child_stubs with
-    | [] -> assert (top q == p); print_endline "add_next_stub: parent w/only fulls at top of q";
-            ignore (pop q) what if it doesn't have any fulls?
-    | x::xs -> p.child_stubs <- xs;
-               if xs = [] then assert (pop q == p);
+    | [] -> assert (top q == p); print_endline "do_next_stub: parent w/only fulls at top of q";
+            iggypop q
+    | x::xs -> fail_if (min_child_node_cost p <= p.fcost) "the cheapest child should be the top";
                let n = node_of_stub p x in
-               if insert_or_die q n
-               then add_child_node n
-               else (add_child_stub n; ignore (pop q))?
+               if xs = [] then fail_if (pop q != p) "do_next_stub: p isn't the top node";   
+               fail_if (not (try_to_insert_new q n)) "stub cost should equal parent cost";
+               p.child_stubs <- xs;
+               add_child_node n
 
 
   let rec update_fcost q n =
-    let fc = min_child_cost n in
-    if fc > n.fcost
+    let cmin = min_child_cost n in
+    if cmin > n.fcost
     then begin
-      n.fcost <- fc;
+      n.fcost <- cmin;
       Q.update q n.loc;
       do_parent n (update_fcost q)
     end
 
-
-  let rec
-      delete_node_and_check_parent n =
-    if has_no_children n
-    then delete_child_and_check_ancestors n
-  and
-      delete_child_and_check_ancestors n =
+  let rec delete_child n =
     delete_child_node n;
-    do_parent n delete_node_and_check_parent
+    do_parent n (fun p -> if has_no_children p then delete_child p)
 
 
-  let add_next_action next_action n q max_depth =
-    let rec add_next () =
+  let do_next_action next_action n q max_depth =
+    let rec do_next () =
       match next_action () with
       | Some a -> begin
           match state_of_action n a max_depth
           with
-          | Some s -> let c = node_of_state n a s in
-                      if try_to_insert_new q c then add_child c
-                      else (add_stub p a; add_next ())
-          | None -> add_next ()                   (* no child = infinite cost *)
+          | Some s -> let c = node_of_state n a s in 
+                      if try_to_insert_new q c
+                      then  add_child_node n
+                      else (add_child_stub n; do_next ())
+          | None -> do_next ()                   (* no child = infinite cost *)
         end
       | None ->                             (* all children have been generated *)
-          n.next_action_o <- None;
-          if has_no_children n
-          then delete_child_and_check_ancestors n
+          n.next_action_opt <- None;
+          if has_no_children n then (iggypop q; delete_child n)
           else update_fcost q n
-    in add_next ()
+    in do_next ()
 
 
-  let add_next_child p q max_depth =
-    match p.next_action_o with
-    | Some f -> add_next_action f p q max_depth
-    | None   -> add_next_stub     p q
+  let do_next_child p q max_depth =
+    match p.next_action_opt with
+    | Some f -> do_next_action f p q max_depth
+    | None   -> do_next_stub     p q
 
   let action_path n =
     let rec do_node acc n =
@@ -354,7 +344,7 @@ module Make (Prob: Typeof_Problem)
     printf "\nprint_node: id=%d. pid=%d. depth=%d. gcost=%d. fcost=%d. %d fulls. %d stubs. Next action? %c.\n"
           n.id  n.parent.id  n.depth   n.gcost   n.fcost
           (L.length n.child_nodes)
-          (L.length n.child_stubs) (if n.next_action_o = None then 'n' else 'y');
+          (L.length n.child_stubs) (if n.next_action_opt = None then 'n' else 'y');
     printf "action: %s\n" (Prob.string_of_action n.action);
     printf  "state: %s\n" (Prob.string_of_state  n.state)
 
@@ -377,7 +367,7 @@ module Make (Prob: Typeof_Problem)
 ;
       assert (not (has_no_children n));
       if Prob.is_goal n.state then Some (action_path n)
-      else (add_next_child n q max_depth;
+      else (do_next_child n q max_depth;
             otop q >>= loop ((i+1) mod 20))
     in
     Q.insert q root;
