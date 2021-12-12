@@ -102,14 +102,14 @@ module Make (E: Element.T) = struct
       if n > max h then (decr h; overflow())
       else (add_new x h n; floatt h n)
 
-    let hop src dest =
-      assert (src.size - dest.size = 1);
-      let n = src.size in
-      let x = src.:(n) in
-      assert (not (dest.beats x dest.:(n_parent n)));
-      decr src;
-      incr dest;
-      hop_raw src dest n
+    let hop a b =
+      assert (a.size - b.size = 1);
+      let n = a.size in
+      let x = a.:(n) in
+      if n > 1 then assert (not (b.beats x b.:(n_parent n)));
+      decr a;
+      incr b;
+      hop_raw a b n
 
     let update h n =
       if n = 1 then heapify h
