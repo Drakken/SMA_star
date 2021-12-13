@@ -271,12 +271,7 @@ module Make (Prob: Typeof_Problem)
   and
     stubify_old_child q c p = 
       let p_had_fulls_only = has_fulls_only p in          (* not in the queue *)
-      if  p_had_fulls_only then begin
-        let pq = Q.element_of_loc q p.loc in
-        printf "\nstubify_old_child: p.id=%d; p.loc=%d; pq.id=%d; c.id=%d; c.loc=%d\n"
-                                     p.id     p.loc     pq.id     c.id     c.loc;
-        assert (p.loc = 0)
-      end;
+      if p_had_fulls_only then assert (p.loc = 0);
       delete_child_node c;
       add_child_stub c;
       if p_had_fulls_only then assert (try_to_insert_old q p)
@@ -303,7 +298,7 @@ module Make (Prob: Typeof_Problem)
   let do_next_stub p q =
     assert (not (no_fulls p));
     match p.child_stubs with
-    | [] -> assert (pop q == p)             (* immediately after actions run out *)
+    | [] -> assert (pop q == p);             (* immediately after actions run out *)
     | x::xs ->
         fail_if (min_child_node_cost p <= p.fcost) "the cheapest child should be the top";
         let n = node_of_stub p x in
