@@ -112,9 +112,8 @@ module Make (E: Element.T) = struct
       hop_raw a b n
 
     let update h n =
-      if n = 1 then heapify h
-      else let () = assert (not (h.beats h.:(n) h.:(n_parent n)))
-      in heapify_n h n
+      if n > 1 then assert (not (h.beats h.:(n) h.:(n_parent n)));
+      heapify_n h n
 
   end
 

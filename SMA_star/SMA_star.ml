@@ -200,8 +200,13 @@ module Make (Prob: Typeof_Problem)
     let[@inline] no_stubs n = n.child_stubs = []
     let[@inline] no_nexts n = n.next_action_opt = None
 
-    let[@inline] has_fulls_only  n = no_stubs n && no_nexts n
-    let[@inline] has_no_children n = no_stubs n && no_nexts n && no_fulls n
+    let[@inline] has_fulls n = n.child_nodes <> []
+    let[@inline] has_stubs n = n.child_stubs <> []
+    let[@inline] has_nexts n = n.next_action_opt <> None
+
+    let[@inline] has_fulls_only  n =  no_stubs n &&  no_nexts n
+    let[@inline] has_no_children n =  no_stubs n &&  no_nexts n &&  no_fulls n
+    let[@inline]    has_children n = has_stubs n || has_nexts n || has_fulls n
 
     let insert_by_cost xs x =
       let rec ins rev_ys = function
@@ -253,6 +258,11 @@ module Make (Prob: Typeof_Problem)
 
   open Node
 
+    let[@inline] add_child_node q c =
+      add_child_node c;
+      Q.update q (c.parent.loc)
+
+
   let otop q = Q.otop q (* try Some (Q.top q) with _ -> None *)
 
   let pop q = from_some (Q.opop q)
@@ -290,22 +300,22 @@ module Make (Prob: Typeof_Problem)
       else beats n (bottom q)
            && match Q.odrop q with
               | None -> failwith "couldn't drop q"
-              | Some b -> printf "\nttin: q size = %d, bottom id = %d ... sn ..." (Q.size q) b.id;
-                          stubify_node q 3 b;
-                          printf " q size = %d, bottom id = %d\n" (Q.size q) (from_some (Q.obottom q)).id;
+              | Some b -> stubify_node q 3 b;
                           try_to_insert_new q n
 
   let do_next_stub p q =
-    assert (not (no_fulls p));
+    assert (has_fulls p);
     match p.child_stubs with
-    | [] -> assert (pop q == p);             (* immediately after actions run out *)
+    | [] -> assert (pop q == p);            (* immediately after actions run out *)
     | x::xs ->
-        fail_if (min_child_node_cost p <= p.fcost) "the cheapest child should be the top";
+        let mcnc = min_child_node_cost p in
+        assert (mcnc >= p.fcost);
+        assert (mcnc >  p.fcost);
         let n = node_of_stub p x in
         if xs = [] then assert (pop q == p);   
         fail_if (not (try_to_insert_new q n)) "stub cost should equal parent cost";
         p.child_stubs <- xs;
-        add_child_node n
+        add_child_node q n
 
 
   let rec update_fcost q n =
@@ -325,14 +335,24 @@ module Make (Prob: Typeof_Problem)
 
   let do_next_action next_action n q max_depth =
     let do_next () =
+    if (has_fulls n) then
+    begin
+        let mcnc = min_child_node_cost n in
+        assert (mcnc >= n.fcost);
+        assert (mcnc >  n.fcost)
+    end;
       match next_action () with
       | Some a -> begin
           match state_of_action n a max_depth
           with
           | Some s -> let c = node_of_state n a s in 
                       if try_to_insert_new q c
-                      then add_child_node c
-                      else add_child_stub c  (* do_next ()) *)
+                      then add_child_node q c
+                      else add_child_stub c;  (* do_next ()) *)
+        if (has_fulls n) then
+        let mcnc = min_child_node_cost n in
+        assert (mcnc >= n.fcost)
+
           | None -> () (* do_next ()  *)                  (* no child = infinite cost *)
         end
       | None ->                             (* all children have been generated *)
@@ -380,7 +400,7 @@ module Make (Prob: Typeof_Problem)
       else (print_node n; ignore (read_line()))
 ;
 *)
-      assert (not (has_no_children n));
+      assert (has_children n);
       if Prob.is_goal n.state then Some (action_path n)
       else (do_next_child n q max_depth;
             otop q >>= loop ((i+1) mod 20))
