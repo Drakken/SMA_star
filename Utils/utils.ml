@@ -10,6 +10,8 @@ let not_found_in str = raise (Not_found_in str)
 
 let fail_if x str = if x then failwith str
 
+let try_or_die f x str = try f x with _ -> failwith str
+
 let (>>= ) xo f = match xo with Some x -> f x | None -> None
 let (>>=!) xo f = match xo with Some x -> f x | None -> ()
 

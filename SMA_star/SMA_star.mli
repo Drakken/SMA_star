@@ -51,6 +51,7 @@ module type Typeof_Queue = sig
           val obottom: t -> element option
           val is_full: t -> bool
           val update: t -> int -> unit
+          val element_of_loc: t -> int -> element
         end
 end
 

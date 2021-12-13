@@ -53,7 +53,12 @@ module Puzzle (Params: Typeof_Params) = struct
     | Right -> "Right"
     | Left  -> "Left"
 
-  let[@inline] rowcol n = n / size, n mod size
+  let[@inline] rowcol n = 
+    let row = n / size
+    and col = n mod size
+    in (* printf " n%d,r%d,c%d " n row col; *)
+    row,col
+
 
   let[@inline] index (row,col) = col + row*size
 
@@ -107,22 +112,27 @@ module Puzzle (Params: Typeof_Params) = struct
       abs (ccell - ctarget)
     in let cellnums = L.init (A.length board) Fun.id
     in L.(sum (map distance cellnums))
+(*
+  let print_actions actns = L.iter (fun a -> print_char (char_of_action a)) actns
+*)
+  let print_rowcol r c = printf "(%d,%d)" r c
 
   let actions {n_empty;_} =
     let on_board (row,col,_) =
       row >=0 && row < size && 
       col >=0 && col < size
     in
-    (* print_int n_empty; flush stdout; *)
+    (* print_int n_empty; *)
     let row,col = rowcol n_empty
-    in (* print_rowcol row col
-    ;  *) let rcas = [
+    in  (* print_rowcol row col
+    ;   *) let rcas = [
       (row-1,col,Above);
       (row+1,col,Below);
       (row,col-1,Left);
       (row,col+1,Right)] in
     let actns = L.(map third (filter on_board rcas))
-    in (* print_newline(); print_actions actns;*) actns
+    in (* print_newline(); print_actions actns; *)
+    actns
 
   let make_action_generator = SMA_star.Generator.of_list_maker actions
 
@@ -209,7 +219,8 @@ let test ~queue_size =
   let module Search = SMA_star.Make (Puzl) (TestQ)
   in
   (* print_stuff size; *)
-  let root = Puzl.make_random_board ()
+  let _ = Puzl.make_random_board ()
+  in let root = Puzl.make_random_board ()
   in print_endline "\nStarting state:"
 
   ;  match Search.search ~queue_size root with

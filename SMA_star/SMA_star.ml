@@ -10,8 +10,6 @@ open Utils
 
 let new_id = make_counter 0
 
-let try_or_die f x str = try f x with _ -> not_found_in str
-
 
 module Generator = struct
 
@@ -94,6 +92,8 @@ module type Typeof_Queue = sig
     val is_full: t -> bool
 
     val update: t -> int -> unit
+
+    val element_of_loc: t -> int -> element
 
   end
 
@@ -242,10 +242,6 @@ module Make (Prob: Typeof_Problem)
     let[@inline]    add_child_node c =   push_child c.parent c
     let[@inline]    add_child_stub c = insert_stub  c.parent (stub_of_node c)
 
-    let stubify_child c =
-     try_or_die delete_child_node c "stubify_child";
-     add_child_stub c
-
     let beats a b = a.fcost < b.fcost || (a.fcost = b.fcost && a.depth > b.depth)
 
   end
@@ -261,7 +257,7 @@ module Make (Prob: Typeof_Problem)
 
   let pop q = from_some (Q.opop q)
 
-  let iggypop q = ignore (pop q)
+ (* let iggypop q = ignore (pop q) *)
 
   let[@inline] not_full q = not (Q.is_full q)
 
@@ -271,29 +267,41 @@ module Make (Prob: Typeof_Problem)
     | None -> invalid_arg "bottom: queue is empty"
 
   let rec
-    stubify_node q n = do_parent n (stubify_old_child q n)
+    stubify_node q i n = print_int i; do_parent n (stubify_old_child q n)
   and
     stubify_old_child q c p = 
       let p_had_fulls_only = has_fulls_only p in          (* not in the queue *)
-      stubify_child c;
-      if p_had_fulls_only then ignore (try_to_insert_old q p)
+      if  p_had_fulls_only then begin
+        let pq = Q.element_of_loc q p.loc in
+        printf "\nstubify_old_child: p.id=%d; p.loc=%d; pq.id=%d; c.id=%d; c.loc=%d\n"
+                                     p.id     p.loc     pq.id     c.id     c.loc;
+        assert (p.loc = 0)
+      end;
+      delete_child_node c;
+      add_child_stub c;
+      if p_had_fulls_only then assert (try_to_insert_old q p)
   and
     drop_and_try_old_again q n =
-      Q.odrop q >>=! stubify_node q;
+      Q.odrop q >>=! stubify_node q 1;
       try_to_insert_old q n
   and
     try_to_insert_old q n =
       if not_full q then (Q.insert q n; true)
       else if beats n (bottom q) then drop_and_try_old_again q n
-      else (stubify_node q n; false)
+      else (stubify_node q 2 n; false)
 
   let rec try_to_insert_new q n =
       if not_full q then (Q.insert q n; true)
       else beats n (bottom q)
-           && (Q.odrop q >>=! stubify_node q; try_to_insert_new q n)
+           && match Q.odrop q with
+              | None -> failwith "couldn't drop q"
+              | Some b -> printf "\nttin: q size = %d, bottom id = %d ... sn ..." (Q.size q) b.id;
+                          stubify_node q 3 b;
+                          printf " q size = %d, bottom id = %d\n" (Q.size q) (from_some (Q.obottom q)).id;
+                          try_to_insert_new q n
 
   let do_next_stub p q =
-    fail_if (no_fulls p) "no children in do_next_stub";
+    assert (not (no_fulls p));
     match p.child_stubs with
     | [] -> assert (pop q == p)             (* immediately after actions run out *)
     | x::xs ->
@@ -310,38 +318,41 @@ module Make (Prob: Typeof_Problem)
     if cmin > n.fcost
     then begin
       n.fcost <- cmin;
-      Q.update q n.loc;
+      if n.loc <> 0 then Q.update q n.loc;
       do_parent n (update_fcost q)
     end
 
   let rec delete_child n =
+    assert (n.loc = 0); 
     delete_child_node n;
     do_parent n (fun p -> if has_no_children p then delete_child p)
 
 
   let do_next_action next_action n q max_depth =
-    let rec do_next () =
+    let do_next () =
       match next_action () with
       | Some a -> begin
           match state_of_action n a max_depth
           with
           | Some s -> let c = node_of_state n a s in 
                       if try_to_insert_new q c
-                      then  add_child_node n
-                      else (add_child_stub n; do_next ())
-          | None -> do_next ()                   (* no child = infinite cost *)
+                      then add_child_node c
+                      else add_child_stub c  (* do_next ()) *)
+          | None -> () (* do_next ()  *)                  (* no child = infinite cost *)
         end
       | None ->                             (* all children have been generated *)
           n.next_action_opt <- None;
-          if has_no_children n then (iggypop q; delete_child n)
+          if no_stubs n then assert (pop q == n);
+          if no_stubs n
+          && no_fulls n then delete_child n
           else update_fcost q n
     in do_next ()
 
 
   let do_next_child p q max_depth =
     match p.next_action_opt with
-    | Some f -> do_next_action f p q max_depth
-    | None   -> do_next_stub     p q
+    | Some f -> print_char 'a'; do_next_action f p q max_depth
+    | None   -> print_char 's'; do_next_stub     p q
 
   let action_path n =
     let rec do_node acc n =
@@ -368,7 +379,7 @@ module Make (Prob: Typeof_Problem)
           if d < queue_size then d
           else invalid_arg "max depth exceeds queue size"
     in
-    let rec loop i n =
+    let rec loop i n = print_char '.';
 (*
       if true then printf " id%d " n.id
       else (print_node n; ignore (read_line()))

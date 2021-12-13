@@ -262,5 +262,10 @@ module Make (E: Element.T) = struct
     in let n1 = H.update h1 (abs loc)
     in maybe_swap h1 n1 h2
 
+  let element_of_loc q n =
+    if      n>0 then q.hi.:(n)
+    else if n<0 then q.lo.:(-n)
+    else invalid_arg "element_of_loc: loc = 0"
+
 end
 
