@@ -256,11 +256,10 @@ module Make (E: Element.T) = struct
   let odrop q = if size q > 0 then Some (drop_raw q) else None
 
   let update q loc =
-    if loc <> 0 then
-    let h1,h2 = if loc > 0 then q.hi,q.lo
-                           else q.lo,q.hi
-    in let n1 = H.update h1 (abs loc)
-    in maybe_swap h1 n1 h2
+    if      loc = 0 then invalid_arg "update: loc = 0"
+    else if loc < 0 then H.floatt q.lo (-loc)
+    else let n1 = H.update q.hi loc
+    in maybe_swap q.hi n1 q.lo
 
   let element_of_loc q n =
     if      n>0 then q.hi.:(n)
