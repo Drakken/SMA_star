@@ -24,6 +24,10 @@ let make_counter n0 =
   let n = ref (n0-1) in
   fun () -> n := !n + 1; !n
 
+let fold_times f x0 n =
+  let rec fold x i = if i=0 then x else fold (f x) (i-1)
+  in fold x0 n
+
 
 let[@inline] is_even n = ( n  = 2*(n/2))
 let[@inline] is_odd  n = (n-1 = 2*(n/2))
@@ -70,9 +74,5 @@ module L = struct
     | x::xs -> fold_left f x xs  
 
   let interleave f z = combine (fun acc x -> f (f acc z) x)
-
-  let fold_times f x0 n =
-    let rec fold x i = if i=0 then x else fold (f x) (i-1)
-    in fold x0 n
 
 end

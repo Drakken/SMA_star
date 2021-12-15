@@ -27,15 +27,48 @@ let new_id = make_counter 0
 
 module type Typeof_Params = sig
   val size: int
+  val solution: int array
+end
+
+
+module Puzzle8_params = struct
+  let size = 3
+  let solution =
+    [|1;2;3;
+      8;0;4;
+      7;6;5|]
 end
 
 module Puzzle (Params: Typeof_Params) = struct
 
   open Params
 
+  type state = { n0: int; board: int array }
+
   let length = size*size
 
-  type state = { n_empty: int; board: int array }
+  ;; assert (A.length solution = length)
+
+  let target_indexes = A.make length (-1)
+  ;;
+  A.iteri (fun i x -> target_indexes.(x) <- i) solution
+
+  ;;assert (L.for_all (fun n -> solution.(target_indexes.(n)) = n)
+                       (L.init length Fun.id))
+
+  let solution = 
+   { n0 = target_indexes.(0);
+     board = solution }
+    
+  let[@inline] rowcol n = 
+    let row = n / size
+    and col = n mod size
+    in (* printf " n%d,r%d,c%d " n row col; *)
+    row,col
+
+  let target_rowcols = A.map rowcol target_indexes
+
+  let[@inline] index (row,col) = col + row*size
 
   type action = Above | Below | Right | Left
 
@@ -53,35 +86,27 @@ module Puzzle (Params: Typeof_Params) = struct
     | Right -> "Right"
     | Left  -> "Left"
 
-  let[@inline] rowcol n = 
-    let row = n / size
-    and col = n mod size
-    in (* printf " n%d,r%d,c%d " n row col; *)
-    row,col
-
-
-  let[@inline] index (row,col) = col + row*size
-
-  let next_state { n_empty; board } side
+  let next_state { n0; board } side
     =
     let make_board r c
       =
       let nnew = index (r,c) in
       let new_board = A.copy board in
-      A.swap_cells new_board n_empty nnew;
-      { n_empty = nnew;
+      assert (new_board.(n0) = 0);
+      A.swap_cells new_board n0 nnew;
+      { n0 = nnew;
         board = new_board }
     in
     let vertical dr 
       =
-      let r0,c0 = rowcol n_empty in
+      let r0,c0 = rowcol n0 in
       let rnew = r0 + dr in
       assert (rnew >= 0 || rnew < size);
       make_board rnew c0
     and
         horizontal dc
       =
-      let r0,c0 = rowcol n_empty in
+      let r0,c0 = rowcol n0 in
       let cnew = c0 + dc in
       assert (cnew >= 0 || cnew < size);
       make_board r0 cnew
@@ -92,38 +117,33 @@ module Puzzle (Params: Typeof_Params) = struct
     | Left  -> horizontal (-1)
     | Right -> horizontal   1
 
-  let is_goal {n_empty;board} =
-    let num_vals = length - 1 in
-    n_empty = num_vals &&
-    let is_okay n = board.(n) = n+1
-    in let ns = L.init num_vals Fun.id
-    in L.for_all is_okay ns
+  let is_goal {board;_} =
+    let is_okay n = board.(n) = solution.board.(n)
+    in L.for_all is_okay (L.init length Fun.id)
 
-  let dg_cost_of_action _ _ = 1
+  let delta_g_cost_of_action _ _ = 1
 
-  let h_cost_to_goal {n_empty;board} = 
+  let h_cost_to_goal {n0;board} = 
     let distance ncell =
-      if ncell = n_empty then 0
+      if ncell = n0 then (assert (board.(n0) = 0); 0)
       else
       let ntile = board.(ncell) in
       let rcell,ccell = rowcol ncell in
-      let rtarget,ctarget = rowcol (ntile - 1) in
+      let rtarget,ctarget = target_rowcols.(ntile) in
       abs (rcell - rtarget) +
       abs (ccell - ctarget)
-    in let cellnums = L.init (A.length board) Fun.id
+    in let cellnums = L.init length Fun.id
     in L.(sum (map distance cellnums))
-(*
-  let print_actions actns = L.iter (fun a -> print_char (char_of_action a)) actns
-*)
+
   let print_rowcol r c = printf "(%d,%d)" r c
 
-  let actions {n_empty;_} =
+  let actions {n0;_} =
     let on_board (row,col,_) =
       row >=0 && row < size && 
       col >=0 && col < size
     in
-    (* print_int n_empty; *)
-    let row,col = rowcol n_empty
+    (* print_int n0; *)
+    let row,col = rowcol n0
     in  (* print_rowcol row col
     ;   *) let rcas = [
       (row-1,col,Above);
@@ -136,28 +156,24 @@ module Puzzle (Params: Typeof_Params) = struct
 
   let make_action_generator = SMA_star.Generator.of_list_maker actions
 
-  let tilestr n = if n = length then " " else string_of_int n
+  let tilestr  n = if n = 0 then  " "  else string_of_int n
 
-  let tilestr3 n = if n = length then "  _" else sprintf "%3d" n
+  let tilestr3 n = if n = 0 then "  _" else sprintf "%3d" n
 
   let string_of_row board r =
     let n0 = index (r,0) in
     A.(sub board n0 size |> map tilestr3
                          |> fold_left (^) "")
 
-  let string_of_state {n_empty;board} =
-    let r,c = rowcol n_empty in
-    let n_emptystr = sprintf "empty square: row=%d,col=%d\n" n_empty (r+1) (c+1) in
+  let string_of_state {board;_} =
+(*
+    let r,c = rowcol n0 in
+    let n0str = sprintf "r0=%d,c0=%d\n" (r+1) (c+1) in
+*)
     let boardstr =
       L.(init size Fun.id |> map (string_of_row board)
                           |> interleave (^) "\n")
-    in n_emptystr ^ boardstr
-
-  let make_solution ()
-    = (* printf "array length = %d\n" length; *)
-    let board = A.init length ((+) 1)
-    in let nlast = length-1 in
-    { n_empty = nlast; board }
+    in (* n0str ^ *) boardstr
 
   let make_random_move s
     =  let actions = actions s
@@ -174,18 +190,21 @@ module Puzzle (Params: Typeof_Params) = struct
     in find 0
 
   let make_random_board () =
-    let board = A.init length ((+) 1)
+    let board = A.copy solution.board
     in let swap ns =
       let len = L.length ns in
       let n1 = L.nth ns (Random.int len) in
       let ns = L.filter ((<>) n1) ns in
       let n2 = L.nth ns (Random.int (len-1)) in
-      board.(n1) <- n2+1;
-      board.(n2) <- n1+1; L.filter ((<>) n2) ns
-    in let rec swap2 ns = if L.length ns >= 4 then swap2 (swap (swap ns))
-    in swap2 (L.init length Fun.id);
-    let n_empty = find_blank board
-    in {n_empty;board}
+      let tmp = board.(n1) in
+      board.(n1) <- board.(n2);
+      board.(n2) <- tmp;
+      L.filter ((<>) n2) ns
+    (* in let rec swap2 ns =
+         if L.length ns >= 4 then swap2 (swap (swap ns)) *)      (* even permutations only! *)
+    in let swap2 ns = ignore (swap (swap ns))
+    in swap2 (L.filter ((<>) solution.n0) (L.init length Fun.id))
+    ; { n0 = solution.n0; board }
 
   let string_of_rowcol r c = sprintf "(%d,%d)" (r+1) (c+1)
 
@@ -219,37 +238,30 @@ let print_stuff size
 *)
 
 let test ~queue_size =
-  let n = 3 (*demand_int "Board size? " *)
-  in
-  let module Params = struct let size = n end in
-  let module Puzl = Puzzle (Params) in
-  let module Search = SMA_star.Make (Puzl) (TestQ)
+ (* let n = 3 demand_int "Board size? " 
+  in*) let module Puzl = Puzzle (Puzzle8_params)
+  in let module Search = SMA_star.Make (Puzl) (TestQ)
   in
   (* print_stuff size; *)
   (* let _ = Puzl.make_random_board () in *)
-  let root = (* Puzl.make_random_board () *)
-      Puzl.make_solution () 
-  in print_endline "\nStarting from an already solved board:"
-
-  ;  match Search.search ~queue_size root with
+  print_endline "\nWe'll test the search code by solving an 8 puzzle with various parameters.";
+  let test_board root msg =
+    printf "\nStarting from %s:\n\n" msg;
+    match Search.search ~queue_size root with
      | None -> print_endline "No solution."
-     | Some path 
-  -> Puzl.print_path path
-  ;
-  print_newline ()
-  ;
-  let root = Puzl.(make_random_move (make_solution ()))
-  in print_endline "\nStarting from one move away:"
+     | Some path -> Puzl.print_path path;
+                    print_newline ()
+  in 
 
-  ;  match Search.search ~queue_size root with
-     | None -> print_endline "No solution."
-     | Some path 
-  -> Puzl.print_path path
-  ;  
-  print_newline ()
+  test_board Puzl.solution "an already solved board";
 
+  test_board Puzl.(make_random_move solution) "one move away";
 
-;;test ~queue_size:1000
+  test_board Puzl.(fold_times make_random_move solution  10) "ten random moves away";
+(*
+  test_board Puzl.(make_random_board ()) "two random cell swaps"
+*)
+;;test ~queue_size:1000000
 
 
 
@@ -261,7 +273,7 @@ let print_rows r boards =
   in let num_chars = num_boards * !size + (num_boards - 1) * space_width
   in let board_str = String.make num_chars ' '
   in let print_row nb nr =
-       let n_empty = index (r,0)
+       let n0 = index (r,0)
        in for i = 0 to (!size - 1) do print_tile (board.(n_empty+i)) done
   ; print_newline()
 

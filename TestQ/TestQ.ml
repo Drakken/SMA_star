@@ -54,7 +54,10 @@ module Make (E: Element.T) = struct
       and   left_is_ok = n > n_parent   s   || not (h.beats h.:(n_left  n) h.:(    n     ))
       and  right_is_ok = n > n_parent (s-1) || not (h.beats h.:(n_right n) h.:(    n     ))
       and    loc_is_ok = E.getloc h.:(n) = h.sign * n
-      in verify (parent_is_ok && left_is_ok && right_is_ok && loc_is_ok) msg
+      in verify parent_is_ok (msg ^ ": parent")
+      ;  verify   left_is_ok (msg ^ ": left")
+      ;  verify  right_is_ok (msg ^ ": right")
+      ;  verify    loc_is_ok (msg ^ ": loc")
 
     let[@inline] add_new x h n = h.:(n)<- x; setloc x h n
 

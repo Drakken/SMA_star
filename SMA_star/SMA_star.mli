@@ -27,7 +27,7 @@ module type Typeof_Problem = sig
 
   val is_goal: state -> bool
 
-  val dg_cost_of_action: state -> action -> int
+  val delta_g_cost_of_action: state -> action -> int
 
   val h_cost_to_goal: state -> int
 

@@ -1,8 +1,7 @@
 
 This is the README file for SMA_star, an OCaml implementation of the SMA* search algorithm.
 
-WARNING: As of December 2021, this project is still very much a work in progress. 
-It's intended to be production quality at some point in time, but it's probably not there yet.
+WARNING: This code is still very, very buggy. 
 
 The code mostly follows the design described in Artificial Intelligence: A Modern Approach, 
 by Stuart Russell and Peter Norvig. The most important difference is that, instead of 
@@ -52,9 +51,9 @@ Typeof_Problem		the type of user-supplied modules that define search application
 
 				is_goal s determines whether s is an acceptable goal state.
 
-	dg_cost_of_action: state -> action -> int
+	delta_g_cost_of_action: state -> action -> int
 
-				dg_cost_of_action s a returns the cost (i.e. the incremental increase 
+				delta_g_cost_of_action s a returns the cost (i.e. the incremental increase 
 				in the g-cost) required to take action a, starting from state s.
 
 	h_cost_to_goal: state -> int
