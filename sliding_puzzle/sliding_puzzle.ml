@@ -147,17 +147,16 @@ module Puzzle (Params: Typeof_Params) = struct
 
   let string_of_state {n_empty;board} =
     let r,c = rowcol n_empty in
-    let n_emptystr = sprintf "n_empty = %d: (%d,%d)\n" n_empty (r+1) (c+1) in
+    let n_emptystr = sprintf "empty square: row=%d,col=%d\n" n_empty (r+1) (c+1) in
     let boardstr =
       L.(init size Fun.id |> map (string_of_row board)
                           |> interleave (^) "\n")
     in n_emptystr ^ boardstr
 
   let make_solution ()
-    = printf "array length = %d\n" length
-    ;  let board = A.init length ((+) 1)
+    = (* printf "array length = %d\n" length; *)
+    let board = A.init length ((+) 1)
     in let nlast = length-1 in
-    board.(nlast) <- 0;
     { n_empty = nlast; board }
 
   let make_random_move s
@@ -192,6 +191,14 @@ module Puzzle (Params: Typeof_Params) = struct
 
   let print_actions actns = L.(iter print_char (map char_of_action actns))
 
+  let print_path p = 
+  (*
+    let pathchars = L.map Puzl.char_of_action path
+    in L.iter print_char pathchars
+  *)
+    L.iter (fun s -> print_string (" " ^ s)) 
+           (L.map string_of_action p)
+
 end
 
 
@@ -219,20 +226,30 @@ let test ~queue_size =
   let module Search = SMA_star.Make (Puzl) (TestQ)
   in
   (* print_stuff size; *)
-  let _ = Puzl.make_random_board ()
-  in let root = Puzl.make_random_board ()
-  in print_endline "\nStarting state:"
+  (* let _ = Puzl.make_random_board () in *)
+  let root = (* Puzl.make_random_board () *)
+      Puzl.make_solution () 
+  in print_endline "\nStarting from an already solved board:"
 
   ;  match Search.search ~queue_size root with
      | None -> print_endline "No solution."
      | Some path 
-  -> let pathchars = L.map Puzl.char_of_action path
-  in L.iter print_char pathchars
+  -> Puzl.print_path path
+  ;
+  print_newline ()
+  ;
+  let root = Puzl.(make_random_move (make_solution ()))
+  in print_endline "\nStarting from one move away:"
 
-  ;  print_newline ()
+  ;  match Search.search ~queue_size root with
+     | None -> print_endline "No solution."
+     | Some path 
+  -> Puzl.print_path path
+  ;  
+  print_newline ()
 
 
-;;test ~queue_size:100
+;;test ~queue_size:1000
 
 
 

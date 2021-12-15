@@ -8,9 +8,9 @@ The code mostly follows the design described in Artificial Intelligence: A Moder
 by Stuart Russell and Peter Norvig. The most important difference is that, instead of 
 deleting high-cost nodes that don't fit in the queue, this implementation retains them as 
 stubs that contain the node's action and f-cost. This makes regenerating nodes MUCH easier
-than if they're literally deleted, and it also enables the algorithm to regenerate the most 
-promising nodes first. Ineligible nodes, i.e. those with "infinite" cost, are deleted com-
-pletely; they can't be regenerated unless the parent node is deleted and regenerated.
+than if they were literally deleted, and it also enables the algorithm to regenerate the most 
+promising nodes first. Ineligible nodes, i.e. those with "infinite" cost, are deleted completely; 
+they can't be regenerated unless the parent node is deleted and regenerated.
 
 SMA_star.Make can accept a user-supplied queue module, but the queue has to inform nodes 
 whenever their locations change, because a parent node's f-cost increases when the minimum 

@@ -8,7 +8,8 @@ exception Not_found_in of string
 
 let not_found_in str = raise (Not_found_in str)
 
-let fail_if x str = if x then failwith str
+let fail_if x str = if    x    then failwith str
+let verify  x str = if (not x) then failwith str
 
 let try_or_die f x str = try f x with _ -> failwith str
 
@@ -16,12 +17,16 @@ let (>>= ) xo f = match xo with Some x -> f x | None -> None
 let (>>=!) xo f = match xo with Some x -> f x | None -> ()
 
 let from_some = function
-  | None -> invalid_arg "None"
+  | None -> invalid_arg "None in from_some"
   | Some x -> x
 
 let make_counter n0 =
   let n = ref (n0-1) in
   fun () -> n := !n + 1; !n
+
+
+let[@inline] is_even n = ( n  = 2*(n/2))
+let[@inline] is_odd  n = (n-1 = 2*(n/2))
 
 
 module A = struct
@@ -53,7 +58,7 @@ module L = struct
 
   let min_of f = function
   | x::xs -> fold_left (fun a y -> min a (f y)) (f x) xs
-  | [] -> invalid_arg "empty list"
+  | [] -> invalid_arg "min_of: empty list"
 
   let sum = function
     | x::xs -> fold_left (+) x xs
