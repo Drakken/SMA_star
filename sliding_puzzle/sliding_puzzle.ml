@@ -24,12 +24,10 @@ open Utils
 
 let new_id = make_counter 0
 
-
 module type Typeof_Params = sig
   val size: int
   val solution: int array
 end
-
 
 module Puzzle8_params = struct
   let size = 3
@@ -232,10 +230,7 @@ module Puzzle (Params: Typeof_Params) = struct
 
   let boards_per_page = page_width / (10 + 3*size)
 
-  let print_path_row pairs =
-    let print_strs strs = L.iter print_string strs; print_newline()
-    in
-    L.(iter print_strs (pairs |> map strings_of_pair |> transpose))
+  let print_path_row pairs = print_lines strings_of_pair pairs
 
   let rec print_path pairs = 
     let row,rest = L.snip boards_per_page pairs in
@@ -261,20 +256,22 @@ let test ~queue_size =
   in
   (* print_stuff size; *)
   (* let _ = Puzl.make_random_board () in *)
-  print_endline "\nWe'll test the search code by solving an 8 puzzle with various parameters.";
+  print_endline "\nWe'll test the search code by solving an 8 puzzle with various parameters."
+  ;
   let test_board root msg =
     printf "\nStarting from %s:\n\n" msg;
     match Search.search ~queue_size root with
      | None -> print_endline "No solution."
-     | Some path -> Puzl.print_path path;
+     | Some path -> print_newline (); Puzl.print_path path;
                     print_newline ()
   in 
 (*
   test_board Puzl.solution "an already solved board";
-*)
-  test_board Puzl.(make_random_move solution) "one move away";
 
-  test_board Puzl.(fold_times make_random_move solution  10) "ten random moves away";
+  test_board Puzl.(make_random_move solution) "one move away";
+*)
+  test_board Puzl.(fold_times make_random_move solution   5) "ten random moves away";
+  test_board Puzl.(fold_times make_random_move solution   8) "18 random moves away";
 (*
   test_board Puzl.(make_random_board ()) "two random cell swaps"
 *)

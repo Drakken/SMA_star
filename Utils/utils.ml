@@ -94,3 +94,10 @@ module L = struct
     in xfer n [] xs
 
 end
+
+let print_strings strs = L.iter print_string strs; print_newline()
+
+let print_lines to_strings xs =
+  L.(iter print_strings (xs |> map to_strings |> transpose))
+  
+

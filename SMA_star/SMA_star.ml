@@ -392,6 +392,27 @@ module Make (Prob: Typeof_Problem)
     printf "%s\n" (Prob.string_of_state  n.state);
     flush stdout
 
+
+  let page_width = 100
+
+  let nodes_per_page = page_width / (10 + 3*size)
+
+
+  let strings_of_node n =
+    let line1 = sprintf "id=%d,p=%d,d=%d,g=%d,f=%d."
+                       n.id n.parent.id n.depth n.gcost n.fcost
+    in
+    let line2 = sprintf "%d fulls. %d stubs. na?%c.\n"
+          (L.length n.child_nodes)
+          (L.length n.child_stubs) (if n.next_action_opt = None then 'n' else 'y')
+    in
+    let line3 = sprintf "%s," (Prob.string_of_action n.action);
+
+    sprintf "%s" (Prob.string_of_state  n.state);
+
+  let print_node_row nodes = print_lines strings_of_node nodes
+
+
   let search ~queue_size ?max_depth state =
     let root = make_root_node state in
     let q = Q.make queue_size root in
@@ -405,6 +426,7 @@ module Make (Prob: Typeof_Problem)
     let rec loop i n =
       if i = 0 then 
       begin
+        print_newline();
         print_node n;
         print_string "\nPress return to continue.";
         flush stdout;
