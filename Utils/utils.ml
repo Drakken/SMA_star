@@ -82,7 +82,8 @@ module L = struct
   let interleave f z = combine (fun acc x -> f (f acc z) x)
 
   let rec transpose xs =
-    if for_all ((=) []) xs then []
-    else map hd xs :: transpose (map tl xs)
+    if      for_all ((=)  []) xs then []
+    else if for_all ((<>) []) xs then map hd xs :: transpose (map tl xs)
+    else invalid_arg "transpose: lists have different lengths"
 
 end
