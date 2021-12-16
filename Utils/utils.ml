@@ -28,8 +28,8 @@ let fold_times f x0 n =
   let rec fold x i = if i=0 then x else fold (f x) (i-1)
   in fold x0 n
 
-let[@inline] is_even n = ( n  = 2*(n/2))
-let[@inline] is_odd  n = (n-1 = 2*(n/2))
+let is_even n = ( n  = 2*(n/2))
+let is_odd  n = (n-1 = 2*(n/2))
 
 let rec demand_int msg =
   print_string msg;
@@ -37,6 +37,13 @@ let rec demand_int msg =
   | None -> print_endline "That's not an integer."
             ;demand_int msg
   | Some n -> n
+
+let rec ( ** ) x n =
+  if n < 0 then invalid_arg "negative exponent"
+  else if n = 0 then 1
+  else if n = 1 then x
+  else if is_even n then (x*x)**(n/2)
+  else               x * (x*x)**(n/2)
 
 
 module A = struct

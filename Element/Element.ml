@@ -13,4 +13,6 @@ module type T = sig
   val setloc: t -> int -> unit
   val getloc: t -> int
 
+  val print_row: t list -> unit
+
 end

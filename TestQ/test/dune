@@ -1,4 +1,4 @@
 (test
-  (name TestQ_test)
-(libraries TestQ)
+  (name testq_test)
+  (libraries TestQ)
 )

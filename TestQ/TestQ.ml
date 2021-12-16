@@ -130,10 +130,10 @@ module Make (E: Element.T) = struct
       let nmin = 2**nrow in
       let ntop = min (2*nmin) (h.size + 1) in
       let num_nodes = ntop - nmin in
-      let nodes = map ((.:()) h) (init num_nodes ((+) nmin))
-      in Node.print_row nodes
+      let nodes = L.(map ((.:()) h) (init num_nodes ((+) nmin)))
+      in E.print_row nodes
 
-    let print h f num_rows = iter print_row h (f (init num_rows Fun.id))
+    let print h f num_rows = L.iter (print_row h) (f (L.init num_rows Fun.id))
 
   end
 

@@ -1,9 +1,9 @@
 opam-version: "2.0"
 name: "TestQ"
 version: "0.0"
-synopsis: "DEP queues for testing SMA_star"
+synopsis: "array-based DEP queues for testing SMA_star"
 description: """
-Based on DEPQ
+Based on DEPQ, with added functions for moving modified elements
 """
 authors: "Dan Bensen <danbensen@att.net>"
 license: "MIT"

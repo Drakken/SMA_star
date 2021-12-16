@@ -1,4 +1,4 @@
 (library
- (name        Utils)
- (public_name Utils)
+ (name        utils)
+ (public_name utils)
 )

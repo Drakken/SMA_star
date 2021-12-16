@@ -1,5 +1,5 @@
 opam-version: "2.0"
-name: "SMA_star"
+name: "sma_star"
 version: "0.0"
 synopsis: "SMA* search algorithm with stubs"
 description: """

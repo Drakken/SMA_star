@@ -1,5 +1,5 @@
 opam-version: "2.0"
-name: "Element"
+name: "element"
 version: "0.0"
 synopsis: "the type of element modules for queues used in SMA_star"
 description: """

@@ -1,4 +1,4 @@
 (library
- (name        Element)
- (public_name Element)
+ (name        element)
+ (public_name element)
 )

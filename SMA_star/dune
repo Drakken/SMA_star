@@ -1,7 +1,8 @@
 (library
-  (name        SMA_star)
-  (public_name SMA_star)
-  (libraries Utils Element)
+  (name        sma_star)
+  (public_name sma_star)
+  (synopsis "SMA* search algorithm")
+  (wrapped false)
+  (modules SMA_star)
+  (libraries element utils)
 )
-
-;(test (name my_test_program))
