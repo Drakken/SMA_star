@@ -126,9 +126,25 @@ module Make (E: Element.T) = struct
       if n > 1 then assert (not (h.beats h.:(n) h.:(n_parent n)));
       heapify_n h n
 
+    let print_row h nrow =
+      let nmin = 2**nrow in
+      let ntop = min (2*nmin) (h.size + 1) in
+      let num_nodes = ntop - nmin in
+      let nodes = map ((.:()) h) (init num_nodes ((+) nmin))
+      in Node.print_row nodes
+
+    let print h f num_rows = iter print_row h (f (init num_rows Fun.id))
+
   end
 
   module H = Heap
+
+  let print_hi q num_rows = H.print q.hi Fun.id num_rows
+  let print_lo q num_rows = H.print q.lo  L.rev num_rows
+
+  let print q num_rows =
+    print_hi q num_rows; print_newline();
+    print_lo q num_rows
 
   let ( .:() ) = H.( .:() )
 
