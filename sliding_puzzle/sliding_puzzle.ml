@@ -213,10 +213,10 @@ module Puzzle (Params: Typeof_Params) = struct
   let strings_of_state {board;_} = L.map (string_of_row board) (L.init size Fun.id)
 
   let padded_string_of_action = function
-             | Above -> "  Above ->"
-             | Below -> "  Below ->"
-             | Right -> "  Right ->"
-             | Left  -> "  Left  ->"
+             | Above -> "  above ->"
+             | Below -> "  below ->"
+             | Right -> "  right ->"
+             | Left  -> "  left  ->"
   let action_padding =  "          "
 
   let strings_of_action a =
@@ -228,12 +228,19 @@ module Puzzle (Params: Typeof_Params) = struct
 
   let strings_of_pair (a,s) = L.map2 (^) (strings_of_action a) (strings_of_state s)
 
-  let print_path root p = 
-    let strlists = (strings_of_state root) :: (L.map strings_of_pair p)
-    in let print_row strs =
-      L.iter print_string strs; print_newline()
+  let page_width = 100
+
+  let boards_per_page = page_width / (10 + 3*size)
+
+  let print_path_row pairs =
+    let print_strs strs = L.iter print_string strs; print_newline()
     in
-    L.iter print_row (L.transpose strlists)
+    L.(iter print_strs (pairs |> map strings_of_pair |> transpose))
+
+  let rec print_path pairs = 
+    let row,rest = L.snip boards_per_page pairs in
+    if row  <> [] then print_path_row row;
+    if rest <> [] then (print_newline(); print_path rest)
 
 end
 
@@ -259,7 +266,7 @@ let test ~queue_size =
     printf "\nStarting from %s:\n\n" msg;
     match Search.search ~queue_size root with
      | None -> print_endline "No solution."
-     | Some path -> Puzl.print_path root path;
+     | Some path -> Puzl.print_path path;
                     print_newline ()
   in 
 (*

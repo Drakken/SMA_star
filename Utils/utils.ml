@@ -86,4 +86,11 @@ module L = struct
     else if for_all ((<>) []) xs then map hd xs :: transpose (map tl xs)
     else invalid_arg "transpose: lists have different lengths"
 
+  let snip n xs = 
+    let rec xfer n xs1 = function
+      | [] -> (rev xs1, [])
+      | x::xs2 -> if n = 0 then (rev xs1, x::xs2)
+                  else xfer (n-1) (x::xs1) xs2
+    in xfer n [] xs
+
 end
