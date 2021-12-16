@@ -28,9 +28,15 @@ let fold_times f x0 n =
   let rec fold x i = if i=0 then x else fold (f x) (i-1)
   in fold x0 n
 
-
 let[@inline] is_even n = ( n  = 2*(n/2))
 let[@inline] is_odd  n = (n-1 = 2*(n/2))
+
+let rec demand_int msg =
+  print_string msg;
+  match read_int_opt () with
+  | None -> print_endline "That's not an integer."
+            ;demand_int msg
+  | Some n -> n
 
 
 module A = struct
@@ -74,5 +80,9 @@ module L = struct
     | x::xs -> fold_left f x xs  
 
   let interleave f z = combine (fun acc x -> f (f acc z) x)
+
+  let rec transpose xs =
+    if for_all ((=) []) xs then []
+    else map hd xs :: transpose (map tl xs)
 
 end

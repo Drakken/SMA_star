@@ -104,7 +104,7 @@ module type Typeof_Make =
   functor (Prob: Typeof_Problem) ->
   functor (Queue: Typeof_Queue) ->
     sig
-      val search: queue_size: int -> ?max_depth: int -> Prob.state -> Prob.action list option
+      val search: queue_size: int -> ?max_depth: int -> Prob.state -> (Prob.action * Prob.state) list option
     end
 
 
@@ -373,11 +373,12 @@ module Make (Prob: Typeof_Problem)
     | Some f -> (* print_char 'a'; *) do_next_action f p q max_depth
     | None   ->    print_char 's';    do_next_stub     p q
 
-  let action_path n =
-    let rec do_node acc n =
+  let path n =
+    let rec do_node xs n =
       let p = n.parent in
-      if p == n then acc
-      else do_node (n.action :: acc) p
+      if p == n then xs
+      else let x = (n.action,n.state) in
+           do_node (x::xs) p
     in do_node [] n
 
   let print_node n =
@@ -413,7 +414,7 @@ module Make (Prob: Typeof_Problem)
       else if i mod 100 = 0 then (print_char '.'; flush stdout);
       (* printf " %d" (n.id mod 1000); *)
       assert (has_children n);
-      if Prob.is_goal n.state then Some (action_path n)
+      if Prob.is_goal n.state then Some (path n)
       else (do_next_child n q max_depth;
             otop q >>= loop ((i+1) mod 10000))
     in

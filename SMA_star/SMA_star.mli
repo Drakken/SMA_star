@@ -61,7 +61,7 @@ module type Typeof_Make =
     sig
       val search:
         queue_size:int ->
-        ?max_depth:int -> Prob.state -> Prob.action list option
+        ?max_depth:int -> Prob.state -> (Prob.action * Prob.state) list option
     end
 
 module Make :
@@ -70,5 +70,5 @@ module Make :
     sig
       val search:
         queue_size:int ->
-        ?max_depth:int -> Prob.state -> Prob.action list option
+        ?max_depth:int -> Prob.state -> (Prob.action * Prob.state) list option
     end

@@ -158,7 +158,7 @@ module Puzzle (Params: Typeof_Params) = struct
 
   let tilestr  n = if n = 0 then  " "  else string_of_int n
 
-  let tilestr3 n = if n = 0 then "  _" else sprintf "%3d" n
+  let tilestr3 n = if n = 0 then "   " else sprintf "%3d" n
 
   let string_of_row board r =
     let n0 = index (r,0) in
@@ -210,23 +210,33 @@ module Puzzle (Params: Typeof_Params) = struct
 
   let print_actions actns = L.(iter print_char (map char_of_action actns))
 
-  let print_path p = 
-  (*
-    let pathchars = L.map Puzl.char_of_action path
-    in L.iter print_char pathchars
-  *)
-    L.iter (fun s -> print_string (" " ^ s)) 
-           (L.map string_of_action p)
+  let strings_of_state {board;_} = L.map (string_of_row board) (L.init size Fun.id)
+
+  let padded_string_of_action = function
+             | Above -> "  Above ->"
+             | Below -> "  Below ->"
+             | Right -> "  Right ->"
+             | Left  -> "  Left  ->"
+  let action_padding =  "          "
+
+  let strings_of_action a =
+    let    n1 = (size-1)/2
+    in let n2 = (size-1) - n1
+    in let strs1 = L.init n1 (fun _ -> action_padding)
+    in let strs2 = L.init n2 (fun _ -> action_padding)
+    in strs1 @ (padded_string_of_action a :: strs2)
+
+  let strings_of_pair (a,s) = L.map2 (^) (strings_of_action a) (strings_of_state s)
+
+  let print_path root p = 
+    let strlists = (strings_of_state root) :: (L.map strings_of_pair p)
+    in let print_row strs =
+      L.iter print_string strs; print_newline()
+    in
+    L.iter print_row (L.transpose strlists)
 
 end
 
-
-let rec demand_int msg =
-  print_string msg;
-  match read_int_opt () with
-  | None -> print_endline "That's not an integer."
-            ;demand_int msg
-  | Some n -> n
 
 (* 
 let print_stuff size
@@ -238,8 +248,8 @@ let print_stuff size
 *)
 
 let test ~queue_size =
- (* let n = 3 demand_int "Board size? " 
-  in*) let module Puzl = Puzzle (Puzzle8_params)
+ (* let n = demand_int "Board size? " 
+  in *) let module Puzl = Puzzle (Puzzle8_params)
   in let module Search = SMA_star.Make (Puzl) (TestQ)
   in
   (* print_stuff size; *)
@@ -249,12 +259,12 @@ let test ~queue_size =
     printf "\nStarting from %s:\n\n" msg;
     match Search.search ~queue_size root with
      | None -> print_endline "No solution."
-     | Some path -> Puzl.print_path path;
+     | Some path -> Puzl.print_path root path;
                     print_newline ()
   in 
-
+(*
   test_board Puzl.solution "an already solved board";
-
+*)
   test_board Puzl.(make_random_move solution) "one move away";
 
   test_board Puzl.(fold_times make_random_move solution  10) "ten random moves away";
