@@ -40,4 +40,6 @@ module Make (E: Element.T): sig
 
   val element_of_loc: t -> int -> element
 
+  val print: t -> int -> unit
+
 end

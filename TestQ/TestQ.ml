@@ -139,16 +139,16 @@ module Make (E: Element.T) = struct
 
   module H = Heap
 
+  let ( .:() ) = H.( .:() )
+
+  type t = { hi: H.t; lo: H.t }
+
   let print_hi q num_rows = H.print q.hi Fun.id num_rows
   let print_lo q num_rows = H.print q.lo  L.rev num_rows
 
   let print q num_rows =
     print_hi q num_rows; print_newline();
     print_lo q num_rows
-
-  let ( .:() ) = H.( .:() )
-
-  type t = { hi: H.t; lo: H.t }
 
   let make max x =
     let n = (max+1)/2 in

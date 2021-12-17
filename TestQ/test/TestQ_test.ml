@@ -13,6 +13,8 @@ module Element = struct
   let getloc _ = 0
   let setloc _ _ = ()
 
+  let print_row _ = ()
+
 end
 
 module Q = TestQ.Make (Element)
