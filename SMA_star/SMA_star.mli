@@ -4,6 +4,41 @@
  * copyright (c) 2021 Daniel S. Bensen
  *)
 
+
+module Utils: sig
+  exception Not_found_in of string
+  val not_found_in : string -> 'a
+  val fail_if : bool -> string -> unit
+  val verify : bool -> string -> unit
+  val try_or_die : ('a -> 'b) -> 'a -> string -> 'b
+  val ( >>= ) : 'a option -> ('a -> 'b option) -> 'b option
+  val ( >>=! ) : 'a option -> ('a -> unit) -> unit
+  val from_some : 'a option -> 'a
+  val make_counter : int -> unit -> int
+  val fold_times : ('a -> 'a) -> 'a -> int -> 'a
+  val is_even : int -> bool
+  val is_odd : int -> bool
+  val demand_int : string -> int
+  val ( ** ) : int -> int -> int
+  module A: sig
+    val swap_cells : 'a array -> int -> int -> unit
+  end
+  module L :
+  sig
+    val remove_if : ('a -> bool) -> 'a list-> 'a list
+    val remove_object : 'a -> 'a list -> 'a list
+    val min_of : ('a -> 'b) -> 'a list -> 'b
+    val sum : int list -> int
+    val combine : ('a -> 'a -> 'a) -> 'a list -> 'a
+    val interleave : ('a -> 'a -> 'a) -> 'a -> 'a list -> 'a
+    val transpose : 'a list list -> 'a list list
+    val snip : int -> 'a list -> 'a list * 'a list
+    val print_strings : string list -> unit
+    val print_lines : ('a -> string list) -> 'a list -> unit
+  end
+end
+
+
 module Element: sig
   module type T = sig
     type t

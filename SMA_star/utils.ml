@@ -48,8 +48,6 @@ let rec ( ** ) x n =
 
 module A = struct
 
-  include Array
-
   let swap_cells b n1 n2 =
     let tmp = b.(n1) in
     b.(n1) <- b.(n2);
@@ -60,7 +58,7 @@ end
 
 module L = struct
 
-  include List
+  open List
 
   let remove_if f xs =
     let rec del rev_xs = function
@@ -88,9 +86,9 @@ module L = struct
 
   let interleave f z = combine (fun acc x -> f (f acc z) x)
 
-  let rec transpose xs =
-    if      for_all ((=)  []) xs then []
-    else if for_all ((<>) []) xs then map hd xs :: transpose (map tl xs)
+  let rec transpose xss =
+    if      for_all ((=)  []) xss then []
+    else if for_all ((<>) []) xss then map hd xss :: transpose (map tl xss)
     else invalid_arg "transpose: lists have different lengths"
 
   let snip n xs = 
@@ -100,11 +98,11 @@ module L = struct
                   else xfer (n-1) (x::xs1) xs2
     in xfer n [] xs
 
+  let print_strings strs = iter print_string strs; print_newline()
+
+  let print_lines to_strings xs =
+    iter print_strings (xs |> map to_strings |> transpose)
+
 end
-
-let print_strings strs = L.iter print_string strs; print_newline()
-
-let print_lines to_strings xs =
-  L.(iter print_strings (xs |> map to_strings |> transpose))
   
 
