@@ -17,7 +17,7 @@ module Element = struct
 
 end
 
-module Q = TestQ.Make (Element)
+module Q = SMA_star.DEPQ.Make (Element)
 
 module E = Element
 

@@ -1,4 +1,4 @@
 (test
   (name testq_test)
-  (libraries TestQ)
+  (libraries SMA_star)
 )

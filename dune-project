@@ -1,1 +1,7 @@
 (lang dune 2.9)
+(name SMA_star)
+(version 0.1)
+(license MIT)
+(authors     "Dan Bensen")
+(maintainers "Dan Bensen")
+(source (github Drakken/SMA_star))

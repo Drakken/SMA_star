@@ -7,7 +7,6 @@
 module Element: sig
   module type T = sig
     type t
-    val id: t -> int
     val beats: t -> t -> bool
     val setloc: t -> int -> unit
     val getloc: t -> int
@@ -76,7 +75,7 @@ module DEPQ: Typeof_Queue
 
 
 module type Typeof_Make =
-  functor (Prob : Typeof_Problem) ->
+  functor (Prob: Typeof_Problem) ->
     sig
       val search:
         queue_size:int ->
@@ -85,11 +84,11 @@ module type Typeof_Make =
         (Prob.action * Prob.state) list option
     end
 
+module Make: Typeof_Make 
 
-module Make: Typeof_Make
+module Make_with_queue: functor (Q: Typeof_Queue) -> Typeof_Make 
 
 
-module Make_with_queue: functor (Queue: Typeof_Queue) -> Typeof_Make
 
 
 

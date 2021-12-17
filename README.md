@@ -1,7 +1,8 @@
 
 This is the README file for SMA_star, an OCaml implementation of the SMA* search algorithm.
 
-WARNING: This code is still very, very buggy. 
+WARNING: The code is still very buggy. So far, the sliding puzzle only works on states that
+are within a few moves of the solution.
 
 The code mostly follows the design described in Artificial Intelligence: A Modern Approach, 
 by Stuart Russell and Peter Norvig. The most important difference is that, instead of 
@@ -10,11 +11,6 @@ stubs that contain the node's action and f-cost. This makes regenerating nodes M
 than if they were literally deleted, and it also enables the algorithm to regenerate the most 
 promising nodes first. Ineligible nodes, i.e. those with "infinite" cost, are deleted completely; 
 they can't be regenerated unless the parent node is deleted and regenerated.
-
-SMA_star.Make can accept a user-supplied queue module, but the queue has to inform nodes 
-whenever their locations change, because a parent node's f-cost increases when the minimum 
-f-cost of its successors increases. The SMA_star package includes TestQ, a module for 
-array-based DEP queues.
 
 
 User Guide
@@ -38,7 +34,7 @@ Typeof_Problem		the type of user-supplied modules that define search application
 	next_state: state -> action -> state
 
 				next_state s a returns the state (i.e. the successor) that results from 
-				taking the action described by a with state s as the starting point.
+				taking the action a with state s as the starting point.
 
 	make_action_generator: state -> action Generator.t
 
@@ -54,7 +50,7 @@ Typeof_Problem		the type of user-supplied modules that define search application
 	delta_g_cost_of_action: state -> action -> int
 
 				delta_g_cost_of_action s a returns the cost (i.e. the incremental increase 
-				in the g-cost) required to take action a, starting from state s.
+				in the g-cost) incurred by applying action a to state s.
 
 	h_cost_to_goal: state -> int
 
@@ -63,17 +59,19 @@ Typeof_Problem		the type of user-supplied modules that define search application
 	string_of_action: action -> string
 	string_of_state:  state  -> string
 
+				debugging functions
+
 
 Generator		a module for creating thunk generators
 
 			For each state encountered in a search, SMA_star requires a thunk 
 			that returns an allowable action from that state each time it's called. 
-			make_action_generator takes the state and returns the thunk, and 
-			each function in this module converts some other kind of user- 
+			The function My_problem.make_action_generator takes the state and returns the thunk,
+			and each function in this module converts some other kind of user- 
 			supplied generator (or related function) into a thunk generator.
 
-			These functions are actually polymorphic, but, for the sake of simplicity,
-			we'll pretend they only apply to states and actions as described in the user 
+			These functions are actually polymorphic, but, for the sake of concreteness,
+			the type variables have been replaced with state and action as defined in the user 
 			module. For the real signatures, replace state with 'a and action with 'b.
 
 	action t = unit -> action option
@@ -82,7 +80,7 @@ Generator		a module for creating thunk generators
 
 				An action generator returns (Some a) as long as there's 
 				at least one action (a) that hasn't been generated yet, 
-				and then returns None the next time it's called.
+				and then returns None.
 
 	of_list_maker:  (state -> action list)  -> state -> unit -> action option
 	of_array_maker: (state -> action array) -> state -> unit -> action option
@@ -112,14 +110,11 @@ Element.T		the type of modules that can be used in the queue
 
 	t		the type of elements in the queue
 
-	id x		id takes an element and returns its integer id number.
-			You can use Utils.make_counter to create an id generator. 
-
-	beats x y	beats takes two elements and returns true iff the first one
+	beats x y	beats takes two elements and returns true if and only if the first one
 			belongs higher in the queue than the second on.
 
 	getloc x	Getter and setter for an element's integer location in the queue.	
-	setloc x n	This is for fixing the queue after the element's f-cost is updated.
+	setloc x n	This is for rearranging the queue after the element's f-cost is increased.
 
   end
 
@@ -141,24 +136,33 @@ module type Typeof_Queue
           val update: t -> int -> unit
         end
 end
+	the type of queues used by SMA_star
 
-module type Typeof_Make =
-  functor (Prob : Typeof_Problem)
-          (Queue: Typeof_Queue) ->
+module DEPQ: Typeof_Queue
+	a module for creating array-based double-ended priority queues.
+
+module type Typeof_Search =
     sig
       val search:
         queue_size:int ->
-        ?max_depth:int -> Prob.state -> Prob.action list option
+        ?max_depth:int ->
+        Prob.state -> (Prob.action * Prob.state) list option
     end
+	My_search.search ~queue_size initial_state 
+	creates a DEP queue and uses the SMA* algorithm to find a goal state.
+	The return value is an option containing a path of actions and states
+	that leads from the initial state to the goal state.
 
-module Make :
-  functor (Prob : Typeof_Problem)
-          (Queue: Typeof_Queue) ->
-    sig
-      val search:
-        queue_size:int ->
-        ?max_depth:int -> Prob.state -> Prob.(action * state) list option
-    end
+module Make_with_queue:
+             functor (Q: Typeof_Queue)
+                     (Prob: Typeof_Problem) -> Typeof_Search
+module Make: functor (Prob: Typeof_Problem) -> Typeof_Search
+
+	Make (My_problem) creates a module that contains the search function.
+
+	Make_with_queue (My_queue) (My_problem) accepts a user-supplied queue module
+	in addition to the problem. The queue is expected to inform nodes 
+	whenever their locations change and allow repositioning of any parent node 
+	whose f-cost increases (when the known minimum f-cost of its successors increases). 
 
 
-SMA_star.Make

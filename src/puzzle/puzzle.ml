@@ -1,5 +1,5 @@
 (*
- * sliding puzzle (e.g. 15 puzzle, etc.)
+ * sliding puzzle (e.g. 8 puzzle or 15 puzzle)
  * test case for SMA_star
  * copyright (c) 2021 Daniel S. Bensen
  *)
@@ -20,9 +20,9 @@ open Printf
 
 let third (_,_,x) = x
 
-open Utils
+open SMA_star
 
-let new_id = make_counter 0
+open Utils
 
 module type Typeof_Params = sig
   val size: int

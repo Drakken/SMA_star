@@ -7,7 +7,6 @@
 module type T = sig
 
   type t
-  val id: t -> int
   val beats: t -> t -> bool
 
   val setloc: t -> int -> unit

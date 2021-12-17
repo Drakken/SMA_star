@@ -32,10 +32,6 @@ module Make (E: Element.T) = struct
 
     let max h = Array.length h.array
 
-    let print_ids { array; size; _ } =
-      printf "(%d): " size;
-      for n = 0 to size do printf " %3d " (E.id array.(n)) done
-
     let[@inline] incr h = h.size <- h.size + 1
     let[@inline] decr h = h.size <- h.size - 1
 
@@ -166,10 +162,6 @@ module Make (E: Element.T) = struct
 
   let[@inline] hhi q = q.hi
   let[@inline] hlo q = q.lo
-
-  let print_ids q =
-    print_string "\nhi"; H.print_ids q.hi;
-    print_string "\nlo"; H.print_ids q.lo; print_newline ()
 
   let[@inline] tob fh q =           (* top or bottom :) *)
     let size = size q
@@ -324,13 +316,7 @@ module Make (E: Element.T) = struct
     let x = top q in
     let y = pop_raw q in
     if x == y then Some y
-    else
-    begin
-      print_ids q;
-      printf "\nsize q = %d. x.id = %d. y.id = %d\n" (size q) (E.id x) (E.id y);
-      failwith "opop: x != y"
-    end
-
+    else failwith "opop: x != y"
 
   let odrop q = if size q > 0 then Some (drop_raw q) else None
 

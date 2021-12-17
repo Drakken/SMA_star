@@ -12,7 +12,7 @@ module Utils = Utils
 
 module Element = Element
 
-module Q = Q
+module DEPQ = DEPQ
 
 open Printf
 open Utils
@@ -102,8 +102,6 @@ module Node (Prob: Typeof_Problem) = struct
     L.iter (fun n -> print_int n.id) n.parent.child_nodes;
     print_newline()
 *)
-
-  let id n = n.id
 
   let getloc n   = n.loc
   let setloc n i = n.loc <- i
@@ -274,7 +272,7 @@ end
 
 
 module type Typeof_Make =
-  functor (Prob : Typeof_Problem) ->
+  functor (Prob: Typeof_Problem) ->
     sig
       val search:
         queue_size:int ->
