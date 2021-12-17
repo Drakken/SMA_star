@@ -7,6 +7,13 @@
 (*
 let page_width = 100
 *)
+
+module Utils = Utils
+
+module Element = Element
+
+module Q = Q
+
 open Printf
 open Utils
 
@@ -267,18 +274,18 @@ end
 
 
 module type Typeof_Make =
-  functor (Prob:  Typeof_Problem) ->
-  functor (Queue: Typeof_Queue) ->
+  functor (Prob : Typeof_Problem) ->
     sig
-      val search: queue_size: int 
-               -> ?max_depth: int
-               -> Prob.state
-               -> (Prob.action * Prob.state) list option
+      val search:
+        queue_size:int ->
+        ?max_depth:int ->
+        Prob.state ->
+        (Prob.action * Prob.state) list option
     end
 
 
-module Make (Prob:  Typeof_Problem)
-            (Queue: Typeof_Queue)
+module Make_with_queue (Queue: Typeof_Queue)
+                       (Prob:  Typeof_Problem)
     = struct
 
   module N = Node (Prob)
@@ -434,3 +441,7 @@ module Make (Prob:  Typeof_Problem)
     loop 0 root
 
 end
+
+
+module Make = Make_with_queue (DEPQ)
+

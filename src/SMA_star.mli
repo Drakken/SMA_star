@@ -1,3 +1,19 @@
+(*
+ * SMA* search algorithm
+ * from S. Russell & P. Norvig, Artificial Intelligence: A Modern Approach
+ * copyright (c) 2021 Daniel S. Bensen
+ *)
+
+module Element: sig
+  module type T = sig
+    type t
+    val id: t -> int
+    val beats: t -> t -> bool
+    val setloc: t -> int -> unit
+    val getloc: t -> int
+    val print_row: t list -> unit
+  end
+end
 
 
 module Generator:
@@ -12,6 +28,7 @@ module Generator:
 
     val of_list_maker: ('a -> 'b list) -> 'a -> unit -> 'b option
   end
+
 
 module type Typeof_Problem = sig
 
@@ -55,20 +72,25 @@ module type Typeof_Queue = sig
         end
 end
 
+module DEPQ: Typeof_Queue
+
+
 module type Typeof_Make =
-  functor (Prob : Typeof_Problem)
-          (Queue: Typeof_Queue) ->
+  functor (Prob : Typeof_Problem) ->
     sig
       val search:
         queue_size:int ->
-        ?max_depth:int -> Prob.state -> (Prob.action * Prob.state) list option
+        ?max_depth:int ->
+        Prob.state ->
+        (Prob.action * Prob.state) list option
     end
 
-module Make :
-  functor (Prob : Typeof_Problem)
-          (Queue: Typeof_Queue) ->
-    sig
-      val search:
-        queue_size:int ->
-        ?max_depth:int -> Prob.state -> (Prob.action * Prob.state) list option
-    end
+
+module Make: Typeof_Make
+
+
+module Make_with_queue: functor (Queue: Typeof_Queue) -> Typeof_Make
+
+
+
+

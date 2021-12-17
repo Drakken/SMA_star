@@ -1,5 +1,0 @@
-(library
-  (name        TestQ)
-  (public_name TestQ)
-  (libraries element utils)
-)

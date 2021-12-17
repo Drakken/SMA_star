@@ -1,0 +1,5 @@
+(library
+  (name        SMA_star)
+  (public_name sma_star)
+  (synopsis "SMA* search algorithm")
+)
