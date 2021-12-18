@@ -112,19 +112,29 @@ end
 
 module Ascii_art = struct
 
+  let pad_string width str =
+    let strwidth = String.length str in
+    assert (width >= strwidth);
+    let padding = width - strwidth in
+    let pleft = padding/2 in
+    let pright = padding - pleft in
+    String.make pleft ' ' ^ str ^ String.make pright ' '
+
   let print_string_line strs = L.iter print_string strs; print_newline()
 
   let print_picture_row strss = L.iter print_string_line (L.transpose strss)
 
-  let print_row to_strings xs = print_picture_row (L.map to_strings xs)
+  let print_row width to_strings xs =
+    let pad_row strss = L.map (L.map (pad_string width)) strss
+    in print_picture_row (pad_row (L.map to_strings xs))
 
-  let print_rows n to_strings xs = 
-    if n < 1 then invalid_arg
-      (sprintf "print_rows: objects per row = %d (must be positive)" n)
+  let print_rows ~item_width ~items_per_row to_strings xs = 
+    if items_per_row < 1 then invalid_arg
+      (sprintf "print_rows: objects per row = %d (must be positive)" items_per_row)
     else let rec aux xs =
-      let row,rest = L.snip n xs in
+      let row,rest = L.snip items_per_row xs in
       if row <> [] then begin
-        print_row to_strings row;
+        print_row item_width to_strings row;
         if rest <> [] then (print_newline(); aux rest)
       end
     in aux xs

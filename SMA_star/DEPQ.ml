@@ -19,6 +19,7 @@ let[@inline] n_parent n = n/2
 let[@inline] n_left   n = 2*n    
 let[@inline] n_right  n = 2*n + 1
 
+let node_width = 18
 
 module Make (E: Element.T) = struct
 
@@ -127,7 +128,7 @@ module Make (E: Element.T) = struct
       let ntop = min (2*nmin) (h.size + 1) in
       let num_nodes = ntop - nmin in
       let nodes = L.(map ((.:()) h) (init num_nodes ((+) nmin)))
-      in Ascii_art.print_row E.to_strings nodes
+      in Ascii_art.print_row node_width E.to_strings nodes
 
     let print h f =
       if h.size > 0 then

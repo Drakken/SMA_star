@@ -226,9 +226,14 @@ module Puzzle (Params: Typeof_Params) = struct
 
   let page_width = 100
 
-  let boards_per_page = page_width / (10 + 3*size)
+  let item_width = 10 + 3*size
 
-  let print_path pairs = Ascii_art.print_rows boards_per_page strings_of_pair pairs
+  let boards_per_page = page_width / item_width
+
+  let print_path pairs =
+    Ascii_art.print_rows
+      ~item_width
+      ~items_per_row:boards_per_page strings_of_pair pairs
 
 end
 
