@@ -1,0 +1,5 @@
+(library
+  (name utils)
+  (public_name SMA_star_utils)
+  (synopsis "utility functions for SMA_star search module")
+)

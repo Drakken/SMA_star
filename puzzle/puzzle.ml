@@ -20,8 +20,6 @@ open Printf
 
 let third (_,_,x) = x
 
-open SMA_star
-
 open Utils
 
 module type Typeof_Params = sig
@@ -252,7 +250,7 @@ let print_stuff size
 let test ~queue_size =
  (* let n = demand_int "Board size? " 
   in *) let module Puzl = Puzzle (Puzzle8_params)
-  in let module Search = SMA_star.Make (Puzl) (TestQ)
+  in let module Search = SMA_star.Make (Puzl)
   in
   (* print_stuff size; *)
   (* let _ = Puzl.make_random_board () in *)

@@ -48,6 +48,8 @@ let rec ( ** ) x n =
 
 module A = struct
 
+  include Array
+
   let swap_cells b n1 n2 =
     let tmp = b.(n1) in
     b.(n1) <- b.(n2);
@@ -58,7 +60,7 @@ end
 
 module L = struct
 
-  open List
+  include List
 
   let remove_if f xs =
     let rec del rev_xs = function
@@ -98,11 +100,11 @@ module L = struct
                   else xfer (n-1) (x::xs1) xs2
     in xfer n [] xs
 
-  let print_strings strs = iter print_string strs; print_newline()
-
-  let print_lines to_strings xs =
-    iter print_strings (xs |> map to_strings |> transpose)
-
 end
+
+let print_strings strs = L.iter print_string strs; print_newline()
+
+let print_lines to_strings xs =
+  L.(iter print_strings (xs |> map to_strings |> transpose))
   
 

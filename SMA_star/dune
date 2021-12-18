@@ -2,4 +2,5 @@
   (name        SMA_star)
   (public_name SMA_star)
   (synopsis "SMA* search algorithm")
+  (libraries utils)
 )

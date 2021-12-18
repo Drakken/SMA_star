@@ -8,14 +8,12 @@
 let page_width = 100
 *)
 
-module Utils = Utils
+open Printf
+open Utils
 
 module Element = Element
 
 module DEPQ = DEPQ
-
-open Printf
-open Utils
 
 let new_id = make_counter 0
 

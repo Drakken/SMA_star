@@ -1,0 +1,10 @@
+opam-version: "2.0"
+name: "SMA_star_utils"
+version: "0.1"
+synopsis: "utility functions for SMA_star search module"
+description: """
+Includes extensions to List
+"""
+authors: "Dan Bensen <danbensen@att.net>"
+license: "MIT"
+
