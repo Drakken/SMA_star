@@ -212,7 +212,7 @@ module Puzzle (Params: Typeof_Params) = struct
              | Above -> "  above ->"
              | Below -> "  below ->"
              | Right -> "  right ->"
-             | Left  -> "  left  ->"
+             | Left  -> "   left ->"
   let action_padding =  "          "
 
   let strings_of_action a =
@@ -228,12 +228,7 @@ module Puzzle (Params: Typeof_Params) = struct
 
   let boards_per_page = page_width / (10 + 3*size)
 
-  let print_path_row pairs = print_lines strings_of_pair pairs
-
-  let rec print_path pairs = 
-    let row,rest = L.snip boards_per_page pairs in
-    if row  <> [] then print_path_row row;
-    if rest <> [] then (print_newline(); print_path rest)
+  let print_path pairs = Ascii_art.print_rows boards_per_page strings_of_pair pairs
 
 end
 

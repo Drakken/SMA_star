@@ -232,7 +232,7 @@ module Node (Prob: Typeof_Problem) = struct
     in
     line1::line2::line3::state_lines
 
-  let print_row nodes = print_lines to_strings nodes
+  let print_row nodes = Ascii_art.print_row to_strings nodes
 
   let print n = L.iter print_endline (to_strings n)
 

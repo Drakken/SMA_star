@@ -3,6 +3,7 @@
  * copyright (c) 2021 Daniel S. Bensen
  *)
 
+open Printf
 
 exception Not_found_in of string
 
@@ -102,9 +103,24 @@ module L = struct
 
 end
 
-let print_strings strs = L.iter print_string strs; print_newline()
+module Ascii_art = struct
 
-let print_lines to_strings xs =
-  L.(iter print_strings (xs |> map to_strings |> transpose))
-  
+  let print_string_line strs = L.iter print_string strs; print_newline()
+
+  let print_picture_row strss = L.iter print_string_line (L.transpose strss)
+
+  let print_row to_strings xs = print_picture_row (L.map to_strings xs)
+
+  let print_rows n to_strings xs = 
+    if n < 1 then invalid_arg
+      (sprintf "print_rows: objects per row = %d (must be positive)" n)
+    else let rec aux xs =
+      let row,rest = L.snip n xs in
+      if row <> [] then begin
+        print_row to_strings row;
+        if rest <> [] then (print_newline(); aux rest)
+      end
+    in aux xs
+
+end
 
