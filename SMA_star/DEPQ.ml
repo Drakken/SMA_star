@@ -131,9 +131,11 @@ module Make (E: Element.T) = struct
       in Ascii_art.print_row node_width E.to_strings nodes
 
     let print h f =
-      if h.size > 0 then
-      let num_rows = intlog2 h.size in
-      L.iter (print_row h) (f (L.init num_rows Fun.id))
+      if h.size > 0 then begin
+        printf "size = %d\n" h.size;
+        let num_rows = 1 + intlog2 h.size in
+        L.iter (print_row h) (f (L.init num_rows Fun.id))
+      end
 
   end
 
