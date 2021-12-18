@@ -218,24 +218,22 @@ module Node (Prob: Typeof_Problem) = struct
     do_parent n (fun p -> if has_no_children p then delete_child p)
 
   let to_strings n =
-    let line1 = sprintf "id=%d,p=%d,d=%d,g=%d,f=%d."
-                   n.id n.parent.id n.depth n.gcost n.fcost
+    let    line0 = sprintf "id=%d,p=%d" n.id n.parent.id
+    in let line1 = sprintf  "d=%d,g=%d,f=%d" n.depth n.gcost n.fcost
     in
-    let line2 = sprintf "%d fulls. %d stubs. na?%c.\n"
+    let line2 = sprintf "%d fulls, %d stubs"
           (L.length n.child_nodes)
           (L.length n.child_stubs)
-          (if n.next_action_opt = None then 'n' else 'y')
     in
-    let line3 = sprintf "%s," (Prob.string_of_action n.action)
+    let line3 = sprintf "na?%c, a=%s" (if n.next_action_opt = None then 'n' else 'y')
+                                      (Prob.string_of_action n.action)
     in
     let state_lines = String.split_on_char '\n' (Prob.string_of_state  n.state)
     in
-    line1::line2::line3::state_lines
-
-  let print_row nodes = Ascii_art.print_row to_strings nodes
-
+    line0::line1::line2::line3::state_lines
+(*
   let print n = L.iter print_endline (to_strings n)
-
+*)
 end
 
 
@@ -263,6 +261,8 @@ module type Typeof_Queue = sig
     val update: t -> int -> unit
 
     val element_of_loc: t -> int -> element
+
+    val print: t -> unit
 
   end
 
@@ -420,7 +420,7 @@ module Make_with_queue (Queue: Typeof_Queue)
       if i = 0 then 
       begin
         print_newline();
-        N.print n;
+        Q.print q;
         print_string "\nPress return to continue.";
         flush stdout;
         ignore (read_line());

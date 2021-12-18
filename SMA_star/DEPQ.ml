@@ -127,9 +127,12 @@ module Make (E: Element.T) = struct
       let ntop = min (2*nmin) (h.size + 1) in
       let num_nodes = ntop - nmin in
       let nodes = L.(map ((.:()) h) (init num_nodes ((+) nmin)))
-      in E.print_row nodes
+      in Ascii_art.print_row E.to_strings nodes
 
-    let print h f num_rows = L.iter (print_row h) (f (L.init num_rows Fun.id))
+    let print h f =
+      if h.size > 0 then
+      let num_rows = intlog2 h.size in
+      L.iter (print_row h) (f (L.init num_rows Fun.id))
 
   end
 
@@ -139,12 +142,9 @@ module Make (E: Element.T) = struct
 
   type t = { hi: H.t; lo: H.t }
 
-  let print_hi q num_rows = H.print q.hi Fun.id num_rows
-  let print_lo q num_rows = H.print q.lo  L.rev num_rows
-
-  let print q num_rows =
-    print_hi q num_rows; print_newline();
-    print_lo q num_rows
+  let print q =
+    H.print q.hi Fun.id; print_newline();
+    H.print q.lo L.rev
 
   let make max x =
     let n = (max+1)/2 in

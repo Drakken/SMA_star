@@ -268,7 +268,7 @@ let test ~queue_size =
 (*
   test_board Puzl.(make_random_board ()) "two random cell swaps"
 *)
-;;test ~queue_size:1000000
+;;test ~queue_size:30
 
 
 

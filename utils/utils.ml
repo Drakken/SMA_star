@@ -46,6 +46,13 @@ let rec ( ** ) x n =
   else if is_even n then (x*x)**(n/2)
   else               x * (x*x)**(n/2)
 
+let intlog2 n =
+  if n < 1 then invalid_arg (sprintf "intlog2: arg = %d (must be positive)" n)
+  else
+  let rec aux acc n =
+    if n = 1 then acc
+    else aux (acc+1) (n/2)
+  in aux 0 n
 
 module A = struct
 

@@ -11,7 +11,7 @@ module Element: sig
     val beats: t -> t -> bool
     val setloc: t -> int -> unit
     val getloc: t -> int
-    val print_row: t list -> unit
+    val to_strings: t -> string list
   end
 end
 
@@ -69,6 +69,7 @@ module type Typeof_Queue = sig
           val is_full: t -> bool
           val update: t -> int -> unit
           val element_of_loc: t -> int -> element
+          val print: t -> unit
         end
 end
 
