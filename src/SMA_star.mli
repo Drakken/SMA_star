@@ -5,29 +5,8 @@
  *)
 
 
-module Element: sig
-  module type T = sig
-    type t
-    val beats: t -> t -> bool
-    val setloc: t -> int -> unit
-    val getloc: t -> int
-    val to_strings: t -> string list
-  end
-end
-
-
-module Generator:
-  sig
-    type 'a t = unit -> 'a option
-
-    val of_parser_maker: ('a -> int -> 'b option) -> 'a -> unit -> 'b option
-
-    val of_stepper_and_value_maker: ('a -> ('b -> ('c * 'b) option) * 'b) -> 'a -> unit -> 'c option
-
-    val of_array_maker: ('a -> 'b array) -> 'a -> unit -> 'b option
-
-    val of_list_maker: ('a -> 'b list) -> 'a -> unit -> 'b option
-  end
+module Element:   module type of Element
+module Generator: module type of Generator
 
 
 module type Typeof_Problem = sig
@@ -52,6 +31,7 @@ module type Typeof_Problem = sig
   val string_of_state:  state  -> string
 
 end
+
 
 module type Typeof_Queue = sig
     module Make:

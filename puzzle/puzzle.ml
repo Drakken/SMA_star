@@ -76,42 +76,35 @@ module Puzzle (Params: Typeof_Params) = struct
     | Right -> 'R'
     | Left  -> 'L'
 
-  let string_of_action = function
+  let short_string_of_action = function
+    | Above -> "A"
+    | Below -> "B"
+    | Right -> "R"
+    | Left  -> ""
+
+  let long_string_of_action = function
     | Above -> "Above"
     | Below -> "Below"
     | Right -> "Right"
     | Left  -> "Left"
 
-  let next_state { n0; board } side
-    =
-    let make_board r c
-      =
-      let nnew = index (r,c) in
+  let string_of_action = short_string_of_action
+
+  let next_state { n0; board } side =
+    let move dr dc =
+      let r0,c0 = rowcol n0 in
+      let n1 = index (r0+dr,c0+dc) in
       let new_board = A.copy board in
-      assert (new_board.(n0) = 0);
-      A.swap_cells new_board n0 nnew;
-      { n0 = nnew;
+      assert (new_board.(n0) = 0); A.swap_cells new_board n0 n1;
+      assert (new_board.(n1) = 0);
+      { n0 = n1;
         board = new_board }
     in
-    let vertical dr 
-      =
-      let r0,c0 = rowcol n0 in
-      let rnew = r0 + dr in
-      assert (rnew >= 0 || rnew < size);
-      make_board rnew c0
-    and
-        horizontal dc
-      =
-      let r0,c0 = rowcol n0 in
-      let cnew = c0 + dc in
-      assert (cnew >= 0 || cnew < size);
-      make_board r0 cnew
-    in
     match side with
-    | Above ->  vertical  (-1)
-    | Below ->  vertical    1
-    | Left  -> horizontal (-1)
-    | Right -> horizontal   1
+    | Above -> move (-1)  0
+    | Below -> move   1   0
+    | Left  -> move   0 (-1) 
+    | Right -> move   0   1
 
   let is_goal {board;_} =
     let is_okay n = board.(n) = solution.board.(n)
@@ -268,11 +261,12 @@ let test ~queue_size =
 
   test_board Puzl.(make_random_move solution) "one move away";
 *)
-  test_board Puzl.(fold_times make_random_move solution   5) "ten random moves away";
-  test_board Puzl.(fold_times make_random_move solution   8) "18 random moves away";
+  test_board Puzl.(fold_times make_random_move solution 20) "20 random moves away";
 (*
+  test_board Puzl.(fold_times make_random_move solution   8) "18 random moves away";
   test_board Puzl.(make_random_board ()) "two random cell swaps"
 *)
+
 ;;test ~queue_size:30
 
 

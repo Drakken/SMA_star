@@ -22,8 +22,13 @@ let from_some = function
   | Some x -> x
 
 let make_counter n0 =
-  let n = ref (n0-1) in
-  fun () -> n := !n + 1; !n
+  let n = ref (n0-1)
+  and spares = ref [] in
+  let reclaim m = spares := m :: !spares
+  and issue () = match !spares with
+    | [] -> n := !n + 1; !n
+    | m::ms -> spares := ms; m
+  in issue,reclaim
 
 let fold_times f x0 n =
   let rec fold x i = if i=0 then x else fold (f x) (i-1)

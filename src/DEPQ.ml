@@ -146,7 +146,7 @@ module Make (E: Element.T) = struct
   type t = { hi: H.t; lo: H.t }
 
   let print q =
-    H.print q.hi Fun.id; print_newline();
+    H.print q.hi Fun.id;
     H.print q.lo L.rev
 
   let make max x =

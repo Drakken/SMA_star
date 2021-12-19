@@ -1,5 +1,5 @@
 (*
- * SMA* search algorithm
+ * the type of element Modules for queues used by SMA_star
  * from S. Russell & P. Norvig, Artificial Intelligence: A Modern Approach
  * copyright (c) 2021 Daniel S. Bensen
  *)

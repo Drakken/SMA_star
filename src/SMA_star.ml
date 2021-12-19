@@ -11,48 +11,13 @@ let page_width = 100
 open Printf
 open Utils
 
-module Element = Element
+module H         = Hashtbl
+module Element   = Element
+module Generator = Generator
+module DEPQ      = DEPQ
 
-module DEPQ = DEPQ
 
-let new_id = make_counter 0
-
-
-module Generator = struct
-
-  type 'a t = unit -> 'a option
-
-  let of_stream_function f =
-    let open Stream in
-    let s = from f in 
-    fun () -> try Some (next s) with Failure -> None
-
-  let of_parser_maker make_f p = of_stream_function (make_f p)
-
-  let of_array_maker make_array p =
-    let a = make_array p in
-    let l = Array.length a in
-    of_stream_function (fun n -> if n<l then Some a.(n) else None)
-
-  let of_sequence_function (f,x0) =
-    let open Seq in
-    let sref = ref (unfold f x0) in
-    fun () ->
-      match !sref () with
-      | Nil -> None
-      | Cons (x,s) -> sref := s; Some x
-
-  let of_stepper_and_value_maker make_fx p = of_sequence_function (make_fx p)
-
-  let of_list_maker make_list p =
-    let l = make_list p in
-    let f = function
-      | x::xs -> Some (x,xs)
-      | [] -> None
-    in
-    of_sequence_function (f,l)
-
-end
+let new_id,_(*recycle_id*) = make_counter 0
 
 
 module type Typeof_Problem = sig
@@ -91,13 +56,14 @@ module Node (Prob: Typeof_Problem) = struct
     gcost: int;
     mutable fcost: int;
     mutable next_action_opt: Prob.action Generator.t option;
-    mutable child_nodes: t list;
-    mutable child_stubs: stub list;
+    mutable fulls: t list;
+    mutable stubs: stub list;
+    mutable  dups: stub list;
   }
 (*
   let print_stats fname n =
     printf "%s: id=%d. pid=%d. child nodes = " fname n.id n.parent.id;
-    L.iter (fun n -> print_int n.id) n.parent.child_nodes;
+    L.iter (fun n -> print_int n.id) n.parent.fulls;
     print_newline()
 *)
 
@@ -117,8 +83,9 @@ module Node (Prob: Typeof_Problem) = struct
       next_action_opt = Some (Prob.make_action_generator state);
       gcost = 0;
       fcost = Prob.h_cost_to_goal state;
-      child_nodes = [];
-      child_stubs = [];
+      fulls = [];
+      stubs = [];
+      dups  = [];
     }
     in root
  
@@ -135,8 +102,8 @@ module Node (Prob: Typeof_Problem) = struct
      ;state
      ;gcost
      ;fcost
-     ;child_nodes = []
-     ;child_stubs = []
+     ;fulls = []
+     ;stubs = []
      ;next_action_opt = Some (Prob.make_action_generator state)
     }
 
@@ -159,12 +126,12 @@ module Node (Prob: Typeof_Problem) = struct
       let fcost = max p.fcost (gcost + Prob.h_cost_to_goal s)
       in make_child (new_id()) p a s fcost gcost
 
-  let[@inline] no_fulls n = n.child_nodes = []
-  let[@inline] no_stubs n = n.child_stubs = []
+  let[@inline] no_fulls n = n.fulls = []
+  let[@inline] no_stubs n = n.stubs = []
   let[@inline] no_nexts n = n.next_action_opt = None
 
-  let[@inline] has_fulls n = n.child_nodes <> []
-  let[@inline] has_stubs n = n.child_stubs <> []
+  let[@inline] has_fulls n = n.fulls <> []
+  let[@inline] has_stubs n = n.stubs <> []
   let[@inline] has_nexts n = n.next_action_opt <> None
 
   let[@inline] has_fulls_only  n =  no_stubs n &&  no_nexts n
@@ -182,29 +149,29 @@ module Node (Prob: Typeof_Problem) = struct
 
   let min_node_cost ns = L.min_of (fun n -> n.fcost) ns 
      
-  let min_child_node_cost n = min_node_cost n.child_nodes     
+  let min_child_node_cost n = min_node_cost n.fulls     
 
   let min_child_cost n =
-      match n.child_nodes,
-            n.child_stubs with
+      match n.fulls,
+            n.stubs with
       | [],s::_ -> s.cost
       | ns, [] -> min_node_cost ns
       | ns,s::_ -> min s.cost (min_node_cost ns)
 
   let[@inline] delete_child p c =
     (*  try *)
-        p.child_nodes <- L.remove_object c p.child_nodes
+        p.fulls <- L.remove_object c p.fulls
    (*   with _ ->
         printf  "child id = %d\n" c.id;
         printf "parent id = %d\n" p.id;
         print_string "children ids =";
-        L.iter (fun c -> printf " %d" c.id) p.child_nodes;
+        L.iter (fun c -> printf " %d" c.id) p.fulls;
         print_newline()
    *)
 
 
-  let[@inline]   push_child p c = p.child_nodes <- c :: p.child_nodes
-  let[@inline] insert_stub  p s = p.child_stubs <- insert_by_cost p.child_stubs s
+  let[@inline]   push_child p c = p.fulls <- c :: p.fulls
+  let[@inline] insert_stub  p s = p.stubs <- insert_by_cost p.stubs s
 
   let[@inline] delete_child_node c = delete_child c.parent c
   let[@inline]    add_child_node c =   push_child c.parent c
@@ -218,19 +185,17 @@ module Node (Prob: Typeof_Problem) = struct
     do_parent n (fun p -> if has_no_children p then delete_child p)
 
   let to_strings n =
-    let    line0 = sprintf "id=%d,p=%d" n.id n.parent.id
-    in let line1 = sprintf  "d=%d,g=%d,f=%d" n.depth n.gcost n.fcost
+    let    line0 = sprintf "id%d p%d d%d" n.id n.parent.id n.depth
+    in let line1 = sprintf  "a%s g%d f%d" (Prob.string_of_action n.action) n.gcost n.fcost
     in
-    let line2 = sprintf "%d fulls, %d stubs"
-          (L.length n.child_nodes)
-          (L.length n.child_stubs)
-    in
-    let line3 = sprintf "na?%c, a=%s" (if n.next_action_opt = None then 'n' else 'y')
-                                      (Prob.string_of_action n.action)
+    let line2 = sprintf "c%d s%d n%c"
+          (L.length n.fulls)
+          (L.length n.stubs)
+          (if n.next_action_opt = None then 'n' else 'y')     
     in
     let state_lines = String.split_on_char '\n' (Prob.string_of_state  n.state)
     in
-    line0::line1::line2::line3::state_lines
+    line0::line1::line2::state_lines
 (*
   let print n = L.iter print_endline (to_strings n)
 *)
@@ -352,22 +317,24 @@ module Make_with_queue (Queue: Typeof_Queue)
       do_parent n (update_fcost q)
     end
 
-  let do_next_stub p q =
-    match p.N.child_stubs with
+  let do_next_stub p (q,db) =
+    match p.N.stubs with
     | [] -> assert (pop q == p);            (* immediately after actions run out *)
             if N.no_fulls p then N.delete_child p
     | x::xs ->
         assert N.(no_fulls p || p.fcost <= min_child_node_cost p);
+        p.stubs <- xs;
         let n = N.of_stub p x in
-        fail_if (not (prepare_to_insert q n)) "do_next_stub: stub cost should equal parent cost";
-        if xs = [] then assert (pop q == p);   
-        p.child_stubs <- xs;
-        N.add_child_node n;
-        Q.insert q n;
-	update_fcost q p
+        if not (H.mem db n.state) then begin
+          H.add db n.state ();
+          fail_if (not (prepare_to_insert q n)) "do_next_stub: stub cost should equal parent cost";
+          if xs = [] then assert (pop q == p);   
+          N.add_child_node n;
+          Q.insert q n;
+	  update_fcost q p
+        end
 
-
-  let do_next_action next_action n q max_depth =
+  let do_next_action next_action n (q,_) max_depth =
     let do_next () =
     if (N.has_fulls n) then assert N.(min_child_node_cost n >= n.fcost);
       match next_action () with
@@ -392,12 +359,6 @@ module Make_with_queue (Queue: Typeof_Queue)
           else update_fcost q n
     in do_next ()
 
-
-  let do_next_child p q max_depth =
-    match p.N.next_action_opt with
-    | Some f -> (* print_char 'a'; *) do_next_action f p q max_depth
-    | None   ->    print_char 's';    do_next_stub     p q
-
   let path n =
     let rec do_node xs n =
       let p = n.N.parent in
@@ -409,6 +370,10 @@ module Make_with_queue (Queue: Typeof_Queue)
   let search ~queue_size ?max_depth state =
     let root = N.make_root state in
     let q = Q.make queue_size root in
+    let states = H.create 100 in
+    H.add states state ();
+    let qdb = q,states
+    in
     let max_depth =
       match max_depth with
       | None -> queue_size - 1
@@ -416,8 +381,13 @@ module Make_with_queue (Queue: Typeof_Queue)
           if d < queue_size then d
           else invalid_arg "max depth exceeds queue size"
     in
+    let do_next_child p =
+      match p.N.next_action_opt with
+      | Some f -> (* print_char 'a'; *) do_next_action f p qdb max_depth
+      | None   ->    print_char 's';    do_next_stub     p qdb
+    in
     let rec loop i n =
-      if i = 0 then 
+      if i = 0 || not (N.has_children n) then 
       begin
         print_newline();
         Q.print q;
@@ -427,11 +397,8 @@ module Make_with_queue (Queue: Typeof_Queue)
         print_newline()
       end
       else if i mod 100 = 0 then (print_char '.'; flush stdout);
-      (* printf " %d" (n.id mod 1000); *)
-      assert (N.has_children n);
       if Prob.is_goal n.N.state then Some (path n)
-      else (do_next_child n q max_depth;
-            otop q >>= loop ((i+1) mod 10000))
+      else (do_next_child n; otop q >>= loop ((i+1) mod 100))
     in
     Q.insert q root;
     loop 0 root
