@@ -75,6 +75,14 @@ module L = struct
 
   include List
 
+  let extract_if test xs =
+    let rec aux acc = function
+      | x::xs -> if test x
+                 then Some (x, rev_append acc xs)
+                 else del (x::acc) xs
+      | [] -> None
+      in aux [] xs
+
   let remove_if f xs =
     let rec del rev_xs = function
       | x::xs -> if f x

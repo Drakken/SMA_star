@@ -6,7 +6,6 @@ description: """
 SMA* search in OCaml. Retains high-cost nodes as stubs containing the action and the cost.
 This speeds up regeneration and enables lowest-cost stubs to be selected first.
 Includes an array-based DEP queue that can move updated nodes, or you can use your own.
-Also includes SMA_star_puzzle, a sliding-puzzle demo that uses SMA_star.
 """
 authors: "Dan Bensen <danbensen@att.net>"
 license: "MIT"

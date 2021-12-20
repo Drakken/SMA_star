@@ -27,8 +27,8 @@ module type Typeof_Problem = sig
 
   val h_cost_to_goal: state -> int
 
-  val string_of_action: action -> string
-  val string_of_state:  state  -> string
+  val strings_of_action: action -> string
+  val strings_of_state:  state  -> string
 
 end
 

@@ -11,13 +11,14 @@ let page_width = 100
 open Printf
 open Utils
 
-module H         = Hashtbl
+module H = Hashtbl
+
 module Element   = Element
 module Generator = Generator
 module DEPQ      = DEPQ
 
 
-let new_id,_(*recycle_id*) = make_counter 0
+let new_id, recycle_id = make_counter 0
 
 
 module type Typeof_Problem = sig
@@ -60,17 +61,12 @@ module Node (Prob: Typeof_Problem) = struct
     mutable stubs: stub list;
     mutable  dups: stub list;
   }
-(*
-  let print_stats fname n =
-    printf "%s: id=%d. pid=%d. child nodes = " fname n.id n.parent.id;
-    L.iter (fun n -> print_int n.id) n.parent.fulls;
-    print_newline()
-*)
 
   let getloc n   = n.loc
   let setloc n i = n.loc <- i
 
-  let to_stub n = { id = n.id; action = n.action; cost = n.fcost }
+  let to_stub n = recycle_id n.id;
+    { action = n.action; cost = n.fcost }
 
   let make_root state =
     let rec root = {
@@ -91,29 +87,31 @@ module Node (Prob: Typeof_Problem) = struct
  
   let do_parent n f =
     let p = n.parent in
-    if p != n then f p       (* stop at the root node *)
+    if p != n then f p        (* don't do the root node *)
 
-  let make_child id parent action state fcost gcost = 
-    { id
-     ;loc = 0
-     ;parent
-     ;depth = parent.depth + 1
-     ;action
-     ;state
-     ;gcost
-     ;fcost
-     ;fulls = []
-     ;stubs = []
-     ;next_action_opt = Some (Prob.make_action_generator state)
+  let make_child parent action state fcost gcost = 
+    {
+      id = new_id();
+      loc = 0;
+      parent;
+      depth = parent.depth + 1;
+      action;
+      state;
+      gcost;
+      fcost;
+      fulls = [];
+      stubs = [];
+      dups  = [];
+      next_action_opt = Some (Prob.make_action_generator state);
     }
 
   let next_state p a = Prob.next_state p.state a
 
   let gcost p a = p.gcost + Prob.delta_g_cost_of_action p.state a
 
-  let of_stub p {id;action;cost} =
+  let of_stub p {action;cost} =
       let state = next_state p action in
-      make_child id p action state cost (gcost p action)
+      make_child p action state cost (gcost p action)
 
   let state_of_action p a max_depth = 
       let s = next_state p a in
@@ -124,7 +122,7 @@ module Node (Prob: Typeof_Problem) = struct
   let of_state p a s = 
       let gcost = gcost p a in
       let fcost = max p.fcost (gcost + Prob.h_cost_to_goal s)
-      in make_child (new_id()) p a s fcost gcost
+      in make_child p a s fcost gcost
 
   let[@inline] no_fulls n = n.fulls = []
   let[@inline] no_stubs n = n.stubs = []
@@ -147,18 +145,18 @@ module Node (Prob: Typeof_Problem) = struct
         in
         ins [] xs
 
-  let min_node_cost ns = L.min_of (fun n -> n.fcost) ns 
+  let min_cost ns = L.min_of (fun n -> n.fcost) ns 
      
-  let min_child_node_cost n = min_node_cost n.fulls     
+  let min_full_child_cost n = min_cost n.fulls     
 
   let min_child_cost n =
       match n.fulls,
             n.stubs with
       | [],s::_ -> s.cost
-      | ns, [] -> min_node_cost ns
-      | ns,s::_ -> min s.cost (min_node_cost ns)
+      | ns, [] -> min_cost ns
+      | ns,s::_ -> min s.cost (min_cost ns)
 
-  let[@inline] delete_child p c =
+  let[@inline] delete_full p c =
     (*  try *)
         p.fulls <- L.remove_object c p.fulls
    (*   with _ ->
@@ -169,20 +167,22 @@ module Node (Prob: Typeof_Problem) = struct
         print_newline()
    *)
 
+  let[@inline]   push_full p c = p.fulls <- c :: p.fulls
+  let[@inline] insert_stub p s = p.stubs <- insert_by_cost p.stubs s
 
-  let[@inline]   push_child p c = p.fulls <- c :: p.fulls
-  let[@inline] insert_stub  p s = p.stubs <- insert_by_cost p.stubs s
-
-  let[@inline] delete_child_node c = delete_child c.parent c
-  let[@inline]    add_child_node c =   push_child c.parent c
-  let[@inline]    add_child_stub c = insert_stub  c.parent (to_stub c)
+  let[@inline]    add_child c =   push_full c.parent c
+  let[@inline]    add_stub  c = insert_stub c.parent (to_stub c)
 
   let beats a b = a.fcost < b.fcost || (a.fcost = b.fcost && a.depth > b.depth)
 
   let rec delete_child n =
     assert (n.loc = 0); 
-    delete_child_node n;
+    delete_full c.parent n;
     do_parent n (fun p -> if has_no_children p then delete_child p)
+
+  let rec delete db n =
+    delete_child n
+    recycle id & delete from db
 
   let to_strings n =
     let    line0 = sprintf "id%d p%d d%d" n.id n.parent.id n.depth
@@ -260,8 +260,6 @@ module Make_with_queue (Queue: Typeof_Queue)
 
   let pop q = from_some (Q.opop q)
 
- (* let iggypop q = ignore (pop q) *)
-
   let[@inline] not_full q = not (Q.is_full q)
 
   let bottom q =
@@ -318,11 +316,17 @@ module Make_with_queue (Queue: Typeof_Queue)
     end
 
   let do_next_stub p (q,db) =
-    match p.N.stubs with
-    | [] -> assert (pop q == p);            (* immediately after actions run out *)
-            if N.no_fulls p then N.delete_child p
+    let do_next_dup () =
+      match L.extract_if (fun x -> not (H.mem db x.state)) p.dups with
+      | Some (c,cs) -> H.add db c.state;
+                       p.dubs <- cs;
+                       add q (N.of_stub c)
+      | None -> assert (pop q == p);          (* immediately after actions run out *)
+                if N.no_fulls p then N.delete db p
+    in match p.N.stubs with
+    | [] -> do_next_dup ()
     | x::xs ->
-        assert N.(no_fulls p || p.fcost <= min_child_node_cost p);
+        assert N.(no_fulls p || p.fcost <= min_full_child_cost p);
         p.stubs <- xs;
         let n = N.of_stub p x in
         if not (H.mem db n.state) then begin
@@ -336,7 +340,7 @@ module Make_with_queue (Queue: Typeof_Queue)
 
   let do_next_action next_action n (q,_) max_depth =
     let do_next () =
-    if (N.has_fulls n) then assert N.(min_child_node_cost n >= n.fcost);
+    if (N.has_fulls n) then assert N.(min_full_child_cost n >= n.fcost);
       match next_action () with
       | Some a -> begin
           match N.state_of_action n a max_depth
@@ -346,7 +350,7 @@ module Make_with_queue (Queue: Typeof_Queue)
                       then   add_child_node q c
                       else N.add_child_stub c;  (* do_next ()) *)
         if (N.has_fulls n) then
-        let mcnc = N.min_child_node_cost n in
+        let mcnc = N.min_full_child_cost n in
         assert (mcnc >= n.fcost)
 
           | None -> () (* do_next ()  *)                  (* no child = infinite cost *)

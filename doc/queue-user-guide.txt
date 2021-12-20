@@ -1,0 +1,37 @@
+
+Element.T		the type of modules that can be used in the queue
+			If you provide your own queue module, it must contain
+			a functor called Make that accepts modules of this type.
+
+	t		the type of elements in the queue
+
+	beats x y	beats takes two elements and returns true if and only if the first one
+			belongs higher in the queue than the second on.
+
+	getloc x	Getter and setter for an element's integer location in the queue.	
+	setloc x n	This is for rearranging the queue after the element's f-cost is increased.
+
+  end
+
+
+module type Typeof_Queue
+    module Make:
+      functor (E: Element.T) ->
+        sig
+          type element = E.t
+          type t
+          val make : int -> element -> t
+          val size : t -> int
+          val insert: t -> element -> unit
+          val otop  : t -> element option
+          val opop  : t -> element option
+          val odrop : t -> element option
+          val obottom: t -> element option
+          val is_full: t -> bool
+          val update: t -> int -> unit
+        end
+end
+	the type of queues used by SMA_star
+
+module DEPQ: Typeof_Queue
+	a module for creating array-based double-ended priority queues.

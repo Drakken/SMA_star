@@ -1,0 +1,10 @@
+opam-version: "2.0"
+name: "SMA_star_puzzle"
+version: "0.1"
+synopsis: "sliding puzzle used to test SMA_star"
+description: """
+A command-line version of an 8 puzzle.
+"""
+authors: "Dan Bensen <danbensen@att.net>"
+license: "MIT"
+
