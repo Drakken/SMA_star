@@ -11,7 +11,7 @@ let page_width = 100
 open Printf
 open Utils
 
-module H = Hashtbl
+module HT = Hashtbl
 
 module Element   = Element
 module Generator = Generator
@@ -180,9 +180,15 @@ module Node (Prob: Typeof_Problem) = struct
     delete_full c.parent n;
     do_parent n (fun p -> if has_no_children p then delete_child p)
 
+  let indb db n = HT.mem db x.state
+
+  (* let add2db db n = HT.add db c.state *)
+
   let rec delete db n =
-    delete_child n
-    recycle id & delete from db
+    delete_child n;
+    recycle_id n.id;
+    assert (indb db n);
+    HT.remove db n.state
 
   let to_strings n =
     let    line0 = sprintf "id%d p%d d%d" n.id n.parent.id n.depth
@@ -315,22 +321,23 @@ module Make_with_queue (Queue: Typeof_Queue)
       do_parent n (update_fcost q)
     end
 
+  let do_next_dup p (q,db) =
+    match L.extract_if (fun x -> not (N.indb db x)) p.dups with
+    | Some (c,cs) -> HT.add db c.state;
+                     p.dubs <- cs;
+                     add q (N.of_stub c)
+    | None -> assert (pop q == p);          (* immediately after actions run out *)
+              if N.no_fulls p then N.delete db p
+
   let do_next_stub p (q,db) =
-    let do_next_dup () =
-      match L.extract_if (fun x -> not (H.mem db x.state)) p.dups with
-      | Some (c,cs) -> H.add db c.state;
-                       p.dubs <- cs;
-                       add q (N.of_stub c)
-      | None -> assert (pop q == p);          (* immediately after actions run out *)
-                if N.no_fulls p then N.delete db p
     in match p.N.stubs with
-    | [] -> do_next_dup ()
+    | [] -> do_next_dup p (q,db)
     | x::xs ->
         assert N.(no_fulls p || p.fcost <= min_full_child_cost p);
         p.stubs <- xs;
         let n = N.of_stub p x in
-        if not (H.mem db n.state) then begin
-          H.add db n.state ();
+        if not (HT.mem db n.state) then begin
+          HT.add db n.state ();
           fail_if (not (prepare_to_insert q n)) "do_next_stub: stub cost should equal parent cost";
           if xs = [] then assert (pop q == p);   
           N.add_child_node n;
@@ -374,9 +381,9 @@ module Make_with_queue (Queue: Typeof_Queue)
   let search ~queue_size ?max_depth state =
     let root = N.make_root state in
     let q = Q.make queue_size root in
-    let states = H.create 100 in
-    H.add states state ();
-    let qdb = q,states
+    let db = HT.create 100 in
+    HT.add db state ();
+    let qdb = q,db
     in
     let max_depth =
       match max_depth with
