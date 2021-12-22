@@ -65,8 +65,7 @@ module Node (Prob: Typeof_Problem) = struct
   let getloc n   = n.loc
   let setloc n i = n.loc <- i
 
-  let to_stub n = recycle_id n.id;
-    { action = n.action; cost = n.fcost }
+  let to_stub n = recycle_id n.id; { action = n.action; cost = n.fcost }
 
   let make_root state =
     let rec root = {
@@ -126,15 +125,17 @@ module Node (Prob: Typeof_Problem) = struct
 
   let[@inline] no_fulls n = n.fulls = []
   let[@inline] no_stubs n = n.stubs = []
+  let[@inline] no_dups  n = n.dups  = []
   let[@inline] no_nexts n = n.next_action_opt = None
 
   let[@inline] has_fulls n = n.fulls <> []
   let[@inline] has_stubs n = n.stubs <> []
+  let[@inline] has_dups  n = n.dups  <> []
   let[@inline] has_nexts n = n.next_action_opt <> None
 
-  let[@inline] has_fulls_only  n =  no_stubs n &&  no_nexts n
-  let[@inline] has_no_children n =  no_stubs n &&  no_nexts n &&  no_fulls n
-  let[@inline]    has_children n = has_stubs n || has_nexts n || has_fulls n
+  let[@inline] has_fulls_only  n =  no_stubs n &&  no_nexts n &&  no_dups n
+  let[@inline] has_no_children n =  no_stubs n &&  no_nexts n &&  no_dups n &&  no_fulls n
+  let[@inline]    has_children n = has_stubs n || has_nexts n || has_dups n || has_fulls n
 
   let insert_by_cost xs x =
       let rec ins rev_ys = function
@@ -145,16 +146,25 @@ module Node (Prob: Typeof_Problem) = struct
         in
         ins [] xs
 
-  let min_cost ns = L.min_of (fun n -> n.fcost) ns 
+  let min_opt cos = 
+    match L.concat_map Option.to_list cos with
+    | [] -> None
+    | cs -> Some (L.min cs)
+
+  let min_stub_cost = function
+    | [] -> None
+    | x::xs -> Some x.cost
+
+  let min_full_cost = function
+    | [] -> None
+    | ns -> Some (L.min_of (fun n -> n.fcost) ns)
      
   let min_full_child_cost n = min_cost n.fulls     
 
   let min_child_cost n =
-      match n.fulls,
-            n.stubs with
-      | [],s::_ -> s.cost
-      | ns, [] -> min_cost ns
-      | ns,s::_ -> min s.cost (min_cost ns)
+      min_opt [ min_full_cost n.fulls;
+                min_stub_cost n.stubs;  
+                min_stub_cost n.dups ]
 
   let[@inline] delete_full p c =
     (*  try *)
@@ -167,18 +177,17 @@ module Node (Prob: Typeof_Problem) = struct
         print_newline()
    *)
 
-  let[@inline]   push_full p c = p.fulls <- c :: p.fulls
-  let[@inline] insert_stub p s = p.stubs <- insert_by_cost p.stubs s
+  let[@inline]  push_child c = let p = c.parent in p.fulls <- c :: p.fulls
+  let[@inline] insert_stub c = let p = c.parent in p.stubs <- insert_by_cost p.stubs (to_stub c)
 
-  let[@inline]    add_child c =   push_full c.parent c
-  let[@inline]    add_stub  c = insert_stub c.parent (to_stub c)
+  let[@inline] insert_dup p action cost = p.dups <- insert_by_cost p.dups {action;cost}
 
   let beats a b = a.fcost < b.fcost || (a.fcost = b.fcost && a.depth > b.depth)
 
-  let rec delete_child n =
-    assert (n.loc = 0); 
-    delete_full c.parent n;
-    do_parent n (fun p -> if has_no_children p then delete_child p)
+  let rec delete_child c =
+    assert (c.loc = 0); 
+    delete_full c.parent c;
+    do_parent c (fun p -> if has_no_children p then delete_child p)
 
   let indb db n = HT.mem db x.state
 
@@ -187,8 +196,8 @@ module Node (Prob: Typeof_Problem) = struct
   let rec delete db n =
     delete_child n;
     recycle_id n.id;
-    assert (indb db n);
-    HT.remove db n.state
+    assert (HT.mem db n.state);
+    HT.remove      db n.state
 
   let to_strings n =
     let    line0 = sprintf "id%d p%d d%d" n.id n.parent.id n.depth
@@ -258,10 +267,6 @@ module Make_with_queue (Queue: Typeof_Queue)
   module N = Node (Prob)
   module Q = Queue.Make (N)
 
-  let[@inline] add_child_node q c =
-    N.add_child_node c;
-    Q.update q (c.parent.loc)
-
   let otop q = Q.otop q (* try Some (Q.top q) with _ -> None *)
 
   let pop q = from_some (Q.opop q)
@@ -281,7 +286,7 @@ module Make_with_queue (Queue: Typeof_Queue)
       let p_had_fulls_only = has_fulls_only p in          (* not in the queue *)
       if p_had_fulls_only then assert (p.loc = 0);
       delete_child_node c;
-      add_child_stub c;
+      add_stub c;
       if p_had_fulls_only then assert (try_to_insert_old q p)
   and
     drop_and_try_old_again q n =
@@ -311,7 +316,17 @@ module Make_with_queue (Queue: Typeof_Queue)
                           prepare_to_insert q n
       end
 
-  let rec update_fcost q n =
+   
+    
+don't need to update q until after update_cost
+    Q.update q (c.parent.loc)
+
+
+match min_child_cost n with
+| None -> delete n
+| Some x -> 
+
+  let rec update q n =
     let open N in
     let cmin = min_child_cost n in
     if cmin > n.fcost
@@ -321,10 +336,12 @@ module Make_with_queue (Queue: Typeof_Queue)
       do_parent n (update_fcost q)
     end
 
+
+
   let do_next_dup p (q,db) =
     match L.extract_if (fun x -> not (N.indb db x)) p.dups with
     | Some (c,cs) -> HT.add db c.state;
-                     p.dubs <- cs;
+                     p.dups <- cs;
                      add q (N.of_stub c)
     | None -> assert (pop q == p);          (* immediately after actions run out *)
               if N.no_fulls p then N.delete db p
@@ -340,35 +357,46 @@ module Make_with_queue (Queue: Typeof_Queue)
           HT.add db n.state ();
           fail_if (not (prepare_to_insert q n)) "do_next_stub: stub cost should equal parent cost";
           if xs = [] then assert (pop q == p);   
-          N.add_child_node n;
+          N.add_child n;
           Q.insert q n;
 	  update_fcost q p
         end
 
-  let do_next_action next_action n (q,_) max_depth =
-    let do_next () =
-    if (N.has_fulls n) then assert N.(min_full_child_cost n >= n.fcost);
+
+  let try_next_action next_action n (q,db) max_depth =
+    if (N.has_fulls n) then assert N.(min_full_child_cost n >= n.fcost)
+    ;
+    let add_action action s =
+      let cost = fcost s in
+      if HT.mem db s then
+  see which is cheaper
+ N.insert_dup n a cost
+      else if not (ready_to_insert q cost)
+      then (N.add_stub p {action,cost};
+            if (N.has_fulls p) then assert (p.fcost <= N.min_full_child_cost p))
+      else begin
+        HT.add db s ();
+        let c = N.of_state n a s in
+        N.push_child c;
+        Q.insert q c
+      end
+    in
+    let rec do_next () =
       match next_action () with
       | Some a -> begin
-          match N.state_of_action n a max_depth
-          with
-          | Some s -> let c = N.of_state n a s in 
-                      if try_to_insert_new q c
-                      then   add_child_node q c
-                      else N.add_child_stub c;  (* do_next ()) *)
-        if (N.has_fulls n) then
-        let mcnc = N.min_full_child_cost n in
-        assert (mcnc >= n.fcost)
-
-          | None -> () (* do_next ()  *)                  (* no child = infinite cost *)
-        end
+            match N.state_of_action n a max_depth with
+            | Some s -> add_action a s
+            | None -> do_next ()                    (* no state = infinite cost *)
+          end
       | None ->                             (* all children have been generated *)
-          n.next_action_opt <- None;
-          if N.no_stubs n then assert (pop q == n);
-          if N.no_stubs n
+          n.next_action_opt <- None; 
+          dups
+          if N.no_stubs or dups n then assert (pop q == n);
+          if N.no_stubs or dups n
           && N.no_fulls n then N.delete_child n
-          else update_fcost q n
-    in do_next ()
+          else update q n
+    in
+    do_next ()
 
   let path n =
     let rec do_node xs n =
@@ -394,8 +422,8 @@ module Make_with_queue (Queue: Typeof_Queue)
     in
     let do_next_child p =
       match p.N.next_action_opt with
-      | Some f -> (* print_char 'a'; *) do_next_action f p qdb max_depth
-      | None   ->    print_char 's';    do_next_stub     p qdb
+      | Some f -> (* print_char 'a'; *) try_next_action f p qdb max_depth
+      | None   ->    print_char 's';     do_next_stub     p qdb
     in
     let rec loop i n =
       if i = 0 || not (N.has_children n) then 
