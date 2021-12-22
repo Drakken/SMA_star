@@ -13,15 +13,16 @@ SMA_star uses utility functions in the package SMA_star_utils, and is used by SM
 See doc/user-guide.md for details, and puzzle/puzzle.ml for an example.
 
 
+## Synopsis ##
 
-      8  1  3
-      2  4
-      7  6  5
+	module My_problem =
+    	struct
+			.
+			.  (* define the states, actions, and required values here *)
+			.
+		end
 
-Press return to continue.
-
-
-            8  1  3            8  1  3               1  3            1     3            1  2  3
-   left ->  2     4   left ->     2  4  above ->  8  2  4  right ->  8  2  4  below ->  8     4
-            7  6  5            7  6  5            7  6  5            7  6  5            7  6  5
+	module My_search = SMA_star.Make (My_probem)
+    
+    let path_opt = My_search.search ~queue_size:my_queue_size my_initial_state
 
