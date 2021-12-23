@@ -38,7 +38,7 @@ module type Typeof_Problem = sig
    val h_cost_to_goal: state -> int
 
    val string_of_action: action -> string
-   val string_of_state:  state  -> string
+   val strings_of_state:  state  -> string list
 
 end
 
@@ -67,8 +67,9 @@ module Node (Prob: Typeof_Problem) = struct
    let setloc n i = n.loc <- i
 
    let to_stub n = recycle_id n.id; { scost = n.fcost; action = n.action }
+(*
    let to_dup  n = recycle_id n.id; { dcost = n.fcost; action = n.action; dstate = n.state }
-
+*)
    let make_root state =
       let rec root = {
          id = new_id();
@@ -132,16 +133,18 @@ module Node (Prob: Typeof_Problem) = struct
    let[@inline] no_stubs n = n.stubs = []
    let[@inline] no_dups  n = n.dups  = []
    let[@inline] no_nexts n = n.next_action_opt = None
-
+(*
    let[@inline] no_stubs_or_dups n = no_stubs n && no_dups n
-
+*)
    let[@inline] has_fulls n = n.fulls <> []
    let[@inline] has_stubs n = n.stubs <> []
    let[@inline] has_dups  n = n.dups  <> []
    let[@inline] has_nexts n = n.next_action_opt <> None
 
    let[@inline] has_fulls_only  n =  no_stubs n &&  no_nexts n &&  no_dups n
+(*
    let[@inline] has_no_children n =  no_stubs n &&  no_nexts n &&  no_dups n &&  no_fulls n
+*)
    let[@inline]    has_children n = has_stubs n || has_nexts n || has_dups n || has_fulls n
 
    let insert_by_cost cost_of xs x =
@@ -156,8 +159,8 @@ module Node (Prob: Typeof_Problem) = struct
    let insert_stub_by_cost = insert_by_cost (fun s -> s.scost)
    let insert_dup_by_cost  = insert_by_cost (fun d -> d.dcost)
 
-   let min_stub_cost = function [] -> None | x::xs -> Some x.scost
-   let  min_dup_cost = function [] -> None | x::xs -> Some x.dcost
+   let min_stub_cost = function [] -> None | x::_ -> Some x.scost
+   let  min_dup_cost = function [] -> None | x::_ -> Some x.dcost
      
    let min_full_cost n = 
       match n.fulls with
@@ -187,11 +190,11 @@ module Node (Prob: Typeof_Problem) = struct
    let[@inline] add_stub p s = p.stubs <- insert_stub_by_cost p.stubs s
 
    let insert_stub c = add_stub c.parent (to_stub c)
-
+(*
    let[@inline] insert_dup p a dcost =
       let dstate = next_state p a in
       p.dups <- insert_dup_by_cost p.dups {action=a;dstate;dcost}
-
+*)
    let    beats   a   b = a.fcost < b.fcost || (a.fcost = b.fcost && a.depth > b.depth)
    let cd_beats (c,d) b =    c    < b.fcost || (   c    = b.fcost &&   d     > b.depth)
 
@@ -203,7 +206,7 @@ module Node (Prob: Typeof_Problem) = struct
          (L.length n.fulls)
          (L.length n.stubs) (if n.next_action_opt = None then 'n' else 'y')     
       in
-      let state_lines = String.split_on_char '\n' (Prob.string_of_state  n.state)
+      let state_lines = Prob.strings_of_state n.state
       in
       line0::line1::line2::state_lines
 (*
@@ -291,7 +294,7 @@ module Make_with_queue (Queue: Typeof_Queue)
          if not_full q then (Q.insert q n; true)
          else if N.beats n (bottom q) then drop_and_try_old_again q n
          else (stubify_node q n; false)
-
+(*
    let rec try_to_insert_new q n =
       if not_full q then (Q.insert q n; true)
       else N.beats n (bottom q)
@@ -299,7 +302,7 @@ module Make_with_queue (Queue: Typeof_Queue)
                | None -> failwith "couldn't drop q"
                | Some b -> stubify_node q b;
                            try_to_insert_new q n
-
+*)
    let rec ready_to_insert q n =
       not_full q ||
       begin N.beats n (bottom q)
@@ -388,7 +391,7 @@ module Make_with_queue (Queue: Typeof_Queue)
       in
       let rec do_next_action p next_action =
          let try_db a s =
-            let add cost =
+            let add () =
                let c = N.of_state p a s in
                HT.add db s c;
                N.push_child c;
@@ -398,12 +401,12 @@ module Make_with_queue (Queue: Typeof_Queue)
             let cd = cost,(p.N.depth+1) in
             match HT.find_opt db s with
              | None -> if ready_to_insert_cd q cd
-                       then add cost
+                       then add ()
                        else N.add_stub p {action=a;scost=cost}
              | Some n -> if cost >= n.fcost
                          then N.add_dup p {action=a;dcost=cost;dstate=s}
                          else (assert (ready_to_insert_cd q cd);
-                               delete n; add cost)
+                               delete n; add ())
          in
          match next_action () with
           | Some a -> begin match N.state_of_action p a max_depth with
