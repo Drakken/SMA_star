@@ -73,53 +73,56 @@ end
 
 module L = struct
 
-  include List
+   include List
 
-  let extract_if test xs =
-    let rec aux acc = function
-      | x::xs -> if test x
-                 then Some (x, rev_append acc xs)
-                 else del (x::acc) xs
-      | [] -> None
+   let extract_if test xs =
+      let rec aux acc = function
+       | x::xs -> if test x
+                  then Some (x, rev_append acc xs)
+                  else aux (x::acc) xs
+       | [] -> None
       in aux [] xs
 
-  let remove_if f xs =
-    let rec del rev_xs = function
-      | x::xs -> if f x
-                 then rev_append rev_xs xs
-                 else del (x :: rev_xs) xs
-      | [] -> not_found_in "remove_if"
+   let remove_if f xs =
+      let rec rem rev_xs = function
+       | x::xs -> if f x then rev_append rev_xs xs
+                  else rem (x :: rev_xs) xs
+       | [] -> not_found_in "remove_if"
       in
-      del [] xs
+      rem [] xs
 
-  let remove_object x xs = remove_if ((==) x) xs
+   let remove_object x xs = remove_if ((==) x) xs
 
-  let min_of f = function
-  | x::xs -> fold_left (fun a y -> min a (f y)) (f x) xs
-  | [] -> invalid_arg "min_of: empty list"
+   let min_of f = function
+    | x::xs -> fold_left (fun a y -> min a (f y)) (f x) xs
+    | [] -> invalid_arg "min_of: empty list"
 
-  let sum = function
+   let min_opt = function
+    | [] -> None
+    | xs -> Some (min_of Fun.id xs)
+
+   let sum = function
     | x::xs -> fold_left (+) x xs
     | [] -> invalid_arg "sum: empty list"
 
-  let combine f xs = 
-    match xs with
-    | [] ->  invalid_arg "can't combine empty list"
-    | x::xs -> fold_left f x xs  
+   let combine f xs = 
+      match xs with
+       | [] ->  invalid_arg "can't combine empty list"
+       | x::xs -> fold_left f x xs  
 
-  let interleave f z = combine (fun acc x -> f (f acc z) x)
+   let interleave f z = combine (fun acc x -> f (f acc z) x)
 
-  let rec transpose xss =
-    if      for_all ((=)  []) xss then []
-    else if for_all ((<>) []) xss then map hd xss :: transpose (map tl xss)
-    else invalid_arg "transpose: lists have different lengths"
+   let rec transpose xss =
+      if      for_all ((=)  []) xss then []
+      else if for_all ((<>) []) xss then map hd xss :: transpose (map tl xss)
+      else invalid_arg "transpose: lists have different lengths"
 
-  let snip n xs = 
-    let rec xfer n xs1 = function
-      | [] -> (rev xs1, [])
-      | x::xs2 -> if n = 0 then (rev xs1, x::xs2)
-                  else xfer (n-1) (x::xs1) xs2
-    in xfer n [] xs
+   let snip n xs = 
+      let rec xfer n xs1 = function
+       | [] -> (rev xs1, [])
+       | x::xs2 -> if n = 0 then (rev xs1, x::xs2)
+                   else xfer (n-1) (x::xs1) xs2
+      in xfer n [] xs
 
 end
 

@@ -1,7 +1,7 @@
 (executable
-  (name puzzle)
-  (public_name SMA_star_puzzle)
-  (libraries utils SMA_star)
-  (modes byte exe)
-;  (package SMA_star)
+   (name puzzle)
+   (public_name SMA_star_puzzle)
+   (libraries utils SMA_star)
+   (modes byte exe)
+   (package SMA_star)
 )

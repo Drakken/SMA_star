@@ -4,10 +4,32 @@
  * copyright (c) 2021 Daniel S. Bensen
  *)
 
-
-module Element:   module type of Element
+(*
+module Element: sig include module type of struct include Element end end
 module Generator: module type of Generator
+*)
 
+module Element: sig
+module type T =
+  sig
+    type t
+    val beats : t -> t -> bool
+    val setloc : t -> int -> unit
+    val getloc : t -> int
+    val to_strings : t -> string list
+  end
+end
+
+module Generator: sig
+type 'a t = unit -> 'a option
+val of_stream_function : (int -> 'a option) -> unit -> 'a option
+val of_parser_maker : ('a -> int -> 'b option) -> 'a -> unit -> 'b option
+val of_array_maker : ('a -> 'b array) -> 'a -> unit -> 'b option
+val of_sequence_function : ('a -> ('b * 'a) option) * 'a -> unit -> 'b option
+val of_stepper_and_value_maker :
+  ('a -> ('b -> ('c * 'b) option) * 'b) -> 'a -> unit -> 'c option
+val of_list_maker : ('a -> 'b list) -> 'a -> unit -> 'b option
+end
 
 module type Typeof_Problem = sig
 
@@ -69,8 +91,6 @@ module type Typeof_Make =
 module Make: Typeof_Make 
 
 module Make_with_queue: functor (Q: Typeof_Queue) -> Typeof_Make 
-
-
 
 
 
