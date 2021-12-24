@@ -6,6 +6,8 @@
 (*
 let debugging = true
 
+open Printf
+
 type ('a,'b) debug_params = DP of ('a -> 'b) * 'a
 
 let make_debug debugging =
@@ -256,12 +258,13 @@ let test ~queue_size =
      | Some path -> print_newline (); Puzl.print_path path;
                     print_newline ()
   in 
+  let num_moves = 30 in
 (*
   test_board Puzl.solution "an already solved board";
 
   test_board Puzl.(make_random_move solution) "one move away";
 *)
-  test_board Puzl.(fold_times make_random_move solution 20) "20 random moves away";
+  test_board Puzl.(fold_times make_random_move solution num_moves) (sprintf "%d random moves away" num_moves);
 (*
   test_board Puzl.(fold_times make_random_move solution   8) "18 random moves away";
   test_board Puzl.(make_random_board ()) "two random cell swaps"

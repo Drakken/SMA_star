@@ -20,6 +20,11 @@ module DEPQ      = DEPQ
 
 let new_id, recycle_id = make_counter 0
 
+let pause msg =
+   print_string msg;
+   flush stdout;
+   ignore (read_line())
+
 
 module type Typeof_Problem = sig
 
@@ -38,7 +43,7 @@ module type Typeof_Problem = sig
    val h_cost_to_goal: state -> int
 
    val string_of_action: action -> string
-   val strings_of_state:  state  -> string list
+   val strings_of_state: state  -> string list
 
 end
 
@@ -89,7 +94,7 @@ module Node (Prob: Typeof_Problem) = struct
  
    let do_parent n f =
       let p = n.parent in
-      if p != n then f p        (* don't do the root node *)
+      if p != n then f p        (* the root node is its own parent *)
 
    let make_child parent action state fcost gcost = 
     {
@@ -173,18 +178,10 @@ module Node (Prob: Typeof_Problem) = struct
       min_dup_cost  n.dups ] |> L.concat_map Option.to_list |> L.min_opt
 
    let[@inline] delete_child c =
-    (*  try *)
-        let p = c.parent in p.fulls <- L.remove_object c p.fulls
-   (*   with _ ->
-        printf  "child id = %d\n" c.id;
-        printf "parent id = %d\n" p.id;
-        print_string "children ids =";
-        L.iter (fun c -> printf " %d" c.id) p.fulls;
-        print_newline()
-   *)
+      let p = c.parent in 
+      p.fulls <- L.remove_object c p.fulls
 
-   let[@inline]  push_child c = let p = c.parent in p.fulls <- c :: p.fulls
-
+   let[@inline] push_child c = let p = c.parent in p.fulls <- c :: p.fulls
 
    let[@inline] add_dup  p d = p.dups  <- insert_dup_by_cost  p.dups d
    let[@inline] add_stub p s = p.stubs <- insert_stub_by_cost p.stubs s
@@ -209,9 +206,9 @@ module Node (Prob: Typeof_Problem) = struct
       let state_lines = Prob.strings_of_state n.state
       in
       line0::line1::line2::state_lines
-(*
-  let print n = L.iter print_endline (to_strings n)
-*)
+
+   let print n = L.iter print_endline (to_strings n)
+
 end
 
 
@@ -294,15 +291,7 @@ module Make_with_queue (Queue: Typeof_Queue)
          if not_full q then (Q.insert q n; true)
          else if N.beats n (bottom q) then drop_and_try_old_again q n
          else (stubify_node q n; false)
-(*
-   let rec try_to_insert_new q n =
-      if not_full q then (Q.insert q n; true)
-      else N.beats n (bottom q)
-           && match Q.odrop q with
-               | None -> failwith "couldn't drop q"
-               | Some b -> stubify_node q b;
-                           try_to_insert_new q n
-*)
+
    let rec ready_to_insert q n =
       not_full q ||
       begin N.beats n (bottom q)
@@ -364,7 +353,8 @@ module Make_with_queue (Queue: Typeof_Queue)
       in
       let do_next_dup p =
          match L.extract_if (fun d -> not (HT.mem db d.N.dstate)) p.N.dups with
-          | Some (d,ds) -> if not (ready_to_insert_cd q (d.N.dcost,(p.N.depth+1))) then assert (pop q == p)
+          | Some (d,ds) -> if not (ready_to_insert_cd q (d.N.dcost,(p.N.depth+1)))
+                           then assert (pop q == p)
                            else begin
                               let n = N.of_dup p d in
                               HT.add db d.N.dstate n;
@@ -382,7 +372,11 @@ module Make_with_queue (Queue: Typeof_Queue)
             let n = N.of_stub p x in
             if not (HT.mem db n.state) then begin
                HT.add db n.state n;
-               fail_if (not (ready_to_insert q n)) "do_next_stub: stub cost should equal parent cost";
+               if (not (ready_to_insert q n)) then begin
+                  Q.print q;
+                  N.print n;
+                  failwith "do_next_stub: stub cost should equal parent cost";
+               end;
                if xs = [] then assert (pop q == p);   
                N.push_child n;
                Q.insert q n;
@@ -425,10 +419,10 @@ module Make_with_queue (Queue: Typeof_Queue)
          if i = 0 || not (N.has_children n) then 
          begin
             print_newline();
+(*
             Q.print q;
-            print_string "\nPress return to continue.";
-            flush stdout;
-            ignore (read_line());
+*)
+            pause "\nPress return to continue.";
             print_newline()
          end
          else if i mod 100 = 0 then (print_char '.'; flush stdout);
