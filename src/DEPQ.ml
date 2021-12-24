@@ -27,7 +27,12 @@ module Make (E: Element.T) = struct
 
   module Heap = struct
 
-    type t = { array: element array; sign: int; mutable size: int; beats: element -> element -> bool }
+    type t = {
+               array: element array;
+               sign: int;
+               mutable size: int;
+               beats: element -> element -> bool;
+             }
 
     let make max x sign beats = { array = Array.make max x; sign; size = 0; beats }
 
@@ -128,7 +133,7 @@ module Make (E: Element.T) = struct
       let ntop = min (2*nmin) (h.size + 1) in
       let num_nodes = ntop - nmin in
       let nodes = L.(map ((.:()) h) (init num_nodes ((+) nmin)))
-      in let width = page_width / num_nodes
+      in let width = page_width / nmin
       in Ascii_art.print_row width E.to_strings nodes
 
     let print h f =
