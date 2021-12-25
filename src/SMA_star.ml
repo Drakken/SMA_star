@@ -62,7 +62,7 @@ module Node (Prob: Typeof_Problem) = struct
     state:  Prob.state;
     gcost: int;
     mutable fcost: int;
-    mutable next_action_opt: Prob.action Generator.t option;
+    mutable get_action_opt: Prob.action Generator.t option;
     mutable fulls: t list;
     mutable stubs: stub list;
     mutable  dups: dup  list;
@@ -83,7 +83,7 @@ module Node (Prob: Typeof_Problem) = struct
          depth = 0;
          action = Prob.trivial_action;
          state;
-         next_action_opt = Some (Prob.make_action_generator state);
+         get_action_opt = Some (Prob.make_action_generator state);
          gcost = 0;
          fcost = Prob.h_cost_to_goal state;
          fulls = [];
@@ -109,7 +109,7 @@ module Node (Prob: Typeof_Problem) = struct
       fulls = [];
       stubs = [];
       dups  = [];
-      next_action_opt = Some (Prob.make_action_generator state);
+      get_action_opt = Some (Prob.make_action_generator state);
     }
 
    let next_state p a = Prob.next_state p.state a
@@ -122,6 +122,12 @@ module Node (Prob: Typeof_Problem) = struct
    let of_dup p {action;dstate;dcost} = make_child p action dstate dcost (gcost p action)
 
    let state_of_action p a max_depth = 
+      let s = next_state p a in
+      if Prob.is_goal s || p.depth < max_depth - 1
+      then s
+      else invalid_arg "state_of_action: no state"
+
+   let state_of_action_opt p a max_depth = 
       let s = next_state p a in
       if Prob.is_goal s || p.depth < max_depth - 1
       then Some s
@@ -137,14 +143,14 @@ module Node (Prob: Typeof_Problem) = struct
    let[@inline] no_fulls n = n.fulls = []
    let[@inline] no_stubs n = n.stubs = []
    let[@inline] no_dups  n = n.dups  = []
-   let[@inline] no_nexts n = n.next_action_opt = None
+   let[@inline] no_nexts n = n.get_action_opt = None
 (*
    let[@inline] no_stubs_or_dups n = no_stubs n && no_dups n
 *)
    let[@inline] has_fulls n = n.fulls <> []
    let[@inline] has_stubs n = n.stubs <> []
    let[@inline] has_dups  n = n.dups  <> []
-   let[@inline] has_nexts n = n.next_action_opt <> None
+   let[@inline] has_nexts n = n.get_action_opt <> None
 
    let[@inline] has_fulls_only  n =  no_stubs n &&  no_nexts n &&  no_dups n
 (*
@@ -187,11 +193,9 @@ module Node (Prob: Typeof_Problem) = struct
    let[@inline] add_stub p s = p.stubs <- insert_stub_by_cost p.stubs s
 
    let insert_stub c = add_stub c.parent (to_stub c)
-(*
-   let[@inline] insert_dup p a dcost =
-      let dstate = next_state p a in
-      p.dups <- insert_dup_by_cost p.dups {action=a;dstate;dcost}
-*)
+
+   let[@inline] insert_dup p d = p.dups <- insert_dup_by_cost p.dups d
+
    let    beats   a   b = a.fcost < b.fcost || (a.fcost = b.fcost && a.depth > b.depth)
    let cd_beats (c,d) b =    c    < b.fcost || (   c    = b.fcost &&   d     > b.depth)
 
@@ -201,14 +205,14 @@ module Node (Prob: Typeof_Problem) = struct
       in
       let line2 = sprintf "c%d s%d n%c"
          (L.length n.fulls)
-         (L.length n.stubs) (if n.next_action_opt = None then 'n' else 'y')     
+         (L.length n.stubs) (if n.get_action_opt = None then 'n' else 'y')     
       in
       let state_lines = Prob.strings_of_state n.state
       in
       line0::line1::line2::state_lines
-
+(*
    let print n = L.iter print_endline (to_strings n)
-
+*)
 end
 
 
@@ -291,7 +295,7 @@ module Make_with_queue (Queue: Typeof_Queue)
          if not_full q then (Q.insert q n; true)
          else if N.beats n (bottom q) then drop_and_try_old_again q n
          else (stubify_node q n; false)
-
+(*
    let rec ready_to_insert q n =
       not_full q ||
       begin N.beats n (bottom q)
@@ -300,7 +304,7 @@ module Make_with_queue (Queue: Typeof_Queue)
                 | Some b -> stubify_node q b;
                             ready_to_insert q n
       end
-
+*)
    let rec ready_to_insert_cd q cd =
       not_full q ||
       begin N.cd_beats cd (bottom q)
@@ -322,7 +326,10 @@ module Make_with_queue (Queue: Typeof_Queue)
       let root = N.make_root state in
       let q = Q.make queue_size root in
       let db = HT.create 100 in
-      HT.add db state root;
+      let db_mem s = HT.mem db s
+      and db_add s n = HT.add db s n
+      and db_remove s = HT.remove db s in
+      db_add state root;
       let max_depth =
          match max_depth with
           | None -> queue_size - 1
@@ -347,47 +354,51 @@ module Make_with_queue (Queue: Typeof_Queue)
             assert (n.loc = 0); 
             delete_child n;
             recycle_id n.id;
-            assert (HT.mem db n.state);
-            HT.remove      db n.state;
+            assert (db_mem n.state);
+            db_remove n.state;
             do_parent n update
       in
+      let rec do_next_stub p =
+         match p.N.stubs with
+          | [] -> assert (pop q == p);    (* immediately after actions run out *)
+                  if N.no_fulls p then delete p
+          | x::xs ->
+              let s = N.state_of_action p x.action max_depth in
+              if db_mem s
+              then begin
+                 p.stubs <- xs;
+                 N.insert_dup p {dcost=x.scost;action=x.action;dstate=s};
+                 do_next_stub p
+              end
+              else if (not (ready_to_insert_cd q (x.N.scost,(p.N.depth+1))))
+              then (assert (pop q == p); if N.no_fulls p then delete p)
+              else begin
+                 let n = N.of_stub p x in
+                 db_add n.state n;
+                 if xs = [] then assert (pop q == p);
+                 N.push_child n;
+                 Q.insert q n;
+	         update p
+              end
+      in
       let do_next_dup p =
-         match L.extract_if (fun d -> not (HT.mem db d.N.dstate)) p.N.dups with
+         match L.extract_if (fun d -> not (db_mem d.N.dstate)) p.N.dups with
+          | None -> do_next_stub p
           | Some (d,ds) -> if not (ready_to_insert_cd q (d.N.dcost,(p.N.depth+1)))
-                           then assert (pop q == p)
+                           then do_next_stub p
                            else begin
                               let n = N.of_dup p d in
-                              HT.add db d.N.dstate n;
+                              db_add d.N.dstate n;
                               p.dups <- ds;
-                              Q.insert q n
+                              Q.insert q n;
+                              update p
                            end
-          | None -> assert (pop q == p);          (* immediately after actions run out *)
-                    if N.no_fulls p then delete p
       in
-      let do_next_stub p =
-         match p.N.stubs with
-          | [] -> do_next_dup p
-          | x::xs ->
-            p.stubs <- xs;
-            let n = N.of_stub p x in
-            if not (HT.mem db n.state) then begin
-               HT.add db n.state n;
-               if (not (ready_to_insert q n)) then begin
-                  Q.print q;
-                  N.print n;
-                  failwith "do_next_stub: stub cost should equal parent cost";
-               end;
-               if xs = [] then assert (pop q == p);   
-               N.push_child n;
-               Q.insert q n;
-	       update p
-            end
-      in
-      let rec do_next_action p next_action =
+      let rec do_next_action p get_action =
          let try_db a s =
             let add () =
                let c = N.of_state p a s in
-               HT.add db s c;
+               db_add s c;
                N.push_child c;
                Q.insert q c
             in
@@ -402,22 +413,23 @@ module Make_with_queue (Queue: Typeof_Queue)
                          else (assert (ready_to_insert_cd q cd);
                                delete n; add ())
          in
-         match next_action () with
-          | Some a -> begin match N.state_of_action p a max_depth with
-                           | Some s -> try_db a s
-                           | None -> do_next_action p next_action      (* no state = infinite cost *)
-                      end
-          | None -> p.next_action_opt <- None;    (* last child was generated in prev. call *)
+         let try_state a =
+            match N.state_of_action_opt p a max_depth with
+             | Some s -> try_db a s
+             | None -> do_next_action p get_action      (* no state = infinite cost *)
+         in
+         match get_action () with
+          | Some a -> try_state a
+          | None -> p.get_action_opt <- None;    (* last child was generated in prev. call *)
                     update p
       in
       let do_next_child p =
-         match p.N.next_action_opt with
-          | Some f -> (* print_char 'a'; *) do_next_action p f
-          | None   ->    print_char 's';    do_next_stub p
+         match p.N.get_action_opt with Some f -> do_next_action p f
+                                      | None   -> do_next_dup p
       in
       let rec loop i n =
-         if i = 0 || not (N.has_children n) then 
-         begin
+         if i = 0 || not (N.has_children n)
+         then begin
             print_newline();
 (*
             Q.print q;
