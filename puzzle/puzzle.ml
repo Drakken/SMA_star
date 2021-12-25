@@ -230,6 +230,8 @@ module Puzzle (Params: Typeof_Params) = struct
       ~item_width
       ~items_per_row:boards_per_page strings_of_pair pairs
 
+   let print_state s = Ascii_art.print_picture (strings_of_state s)
+
 end
 
 
@@ -253,6 +255,7 @@ let test ~queue_size =
   ;
   let test_board root msg =
     printf "\nStarting from %s:\n\n" msg;
+    Puzl.print_state root;
     match Search.search ~queue_size root with
      | None -> print_endline "No solution."
      | Some path -> print_newline (); Puzl.print_path path;
