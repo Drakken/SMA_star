@@ -65,7 +65,7 @@ module type Typeof_Queue = sig
           val size : t -> int
           val insert: t -> element -> unit
           val otop  : t -> element option
-          val opop  : t -> element option
+          val  pop  : t -> element
           val odrop : t -> element option
           val obottom: t -> element option
           val is_full: t -> bool
