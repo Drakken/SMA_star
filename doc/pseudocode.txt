@@ -1,9 +1,9 @@
 
 SMA* search pseudocode
 
-Let q be a queue.
+Let q be a priority queue.
 
-Let root be a node containing the starting-point state of the problem.
+Let root be a node containing the initial state of the problem.
 
 Insert root into q.
 
@@ -17,11 +17,11 @@ begin loop
 
    Let s be the next ungenerated successor of n.
 
-   If s isn't a goal and is at the maximum search depth, set its cost to infinity.
+   If s isn't a goal and is at the maximum search depth, ignore it.
    Otherwise, set the f-cost of s to the greater of (f-cost n) and (g(s) + h(s)).
 
    If all of n's successors have been generated,
-      update the f-cost of n and its ancestors if necessary.
+      update the f-cost of n and any of its ancestors whose minimum child costs have increased.
 
    If all of n's successors are in q, drop n from q.
 
