@@ -9,7 +9,7 @@ The code mostly follows the design described in *Artificial Intelligence: A Mode
 
 SMA_star uses utility functions in the package SMA_star_utils, and is packaged together with SMA_star_puzzle, a command-line program that solves sliding puzzles.
 
-See doc/USER-GUIDE.md for details, and puzzle/puzzle.ml for an example.
+See doc/USERS-GUIDE.md for details, and puzzle/puzzle.ml for an example.
 
 
 ## Synopsis ##
