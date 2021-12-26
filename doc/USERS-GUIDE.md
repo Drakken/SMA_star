@@ -1,4 +1,3 @@
-<br>
 
 ## SMA_star user's guide
 
