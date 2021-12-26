@@ -408,6 +408,7 @@ module Make_with_queue (Queue: Typeof_Queue)
           | Some (d,ds) -> if not (ready_to_insert p d.N.dcost)
                            then do_next_stub p
                            else begin
+                              print_char 'd';
                               p.dups <- ds;
                               insert_child (N.of_dup p d);
                            end
@@ -437,7 +438,7 @@ module Make_with_queue (Queue: Typeof_Queue)
                                      | None   -> do_next_dup p
       in
       let rec loop i n =
-         if printing && i = 0
+         if i = 0 && printing
          then begin
             print_endline "\nThe queue:";
             Q.print();

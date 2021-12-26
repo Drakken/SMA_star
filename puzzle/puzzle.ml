@@ -258,8 +258,8 @@ let test ~queue_size =
       Puzl.print_state root;
       match Search.search ~queue_size ~printing:true root with
        | None -> print_endline "No solution."
-       | Some path -> print_newline (); Puzl.print_path path;
-                      print_newline ()
+       | Some path -> print_endline "\nSolution:";
+                      Puzl.print_path path
    in 
 (*
    let test_random_moves num_moves =
