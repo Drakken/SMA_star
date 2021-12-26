@@ -274,7 +274,7 @@ let test ~queue_size =
 *)
   test_board Puzl.(make_random_board ()) "a 2-swap random board"
 
-;;test ~queue_size:30
+;;test ~queue_size:62
 
 
 

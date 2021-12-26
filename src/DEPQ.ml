@@ -19,7 +19,7 @@ let[@inline] n_parent n = n/2
 let[@inline] n_left   n = 2*n    
 let[@inline] n_right  n = 2*n + 1
 
-let page_width = 120
+let page_width = 200
 
 module Make (E: Element.T) = struct
 

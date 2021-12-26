@@ -196,13 +196,12 @@ module Node (Prob: Typeof_Problem) = struct
    let cd_beats (c,d) b =    c    < b.fcost || (   c    = b.fcost &&   d     > b.depth)
 
    let to_strings n =
-      let    line0 = sprintf "id%d p%d d%d" n.id n.parent.id n.depth
+      let    line0 = sprintf "i%dp%dd%d" n.id n.parent.id n.depth
       in let line1 = sprintf  "a%s g%d f%d" (Prob.string_of_action n.action) n.gcost n.fcost
       in
       let line2 = "c:" ^ L.(fold_left (fun s1 s2 -> s1^" "^s2) "" (map (fun c -> string_of_int c.id) n.fulls))
       in
-      let line3 = sprintf "c%d s%d n%c L%d"
-         (L.length n.fulls)
+      let line3 = sprintf "s%d n%c L%d"
          (L.length n.stubs) (if n.get_action_opt = None then 'n' else 'y') n.loc  
       in
       let state_lines = Prob.strings_of_state n.state
@@ -339,6 +338,7 @@ module Make_with_queue (Queue: Typeof_Queue)
       in
       let module Q = struct
          open N
+         let print () = Q.print q
          let update n = Q.update q n.loc
          let pop n = assert (Q.pop q == n)
 (*         let eject n = Q.eject q n
@@ -438,7 +438,7 @@ module Make_with_queue (Queue: Typeof_Queue)
                                      | None   -> do_next_dup p
       in
       let rec loop i n =
-         if i = 0 then pause "\nPress return to continue.";
+         if i = 0 then (Q.print(); pause "\nPress return to continue.");
          if Prob.is_goal n.N.state then Some (path n)
          else begin
             do_next_child n;
