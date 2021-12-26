@@ -17,7 +17,7 @@ The following elements are defined in SMA_star:
 the type of user-supplied modules that define search applications and can be passed to `SMA_star.Make`. A module of this type must completely describe the space of states  to be searched.
 
 - ***state***<br>
-the type of states that represent the results of full or partial solutions to the problem (including the initial state)
+the type of states that represent the results of full or partial solutions to the problem (or the initial state)
 
 - ***action***<br>
 the type of information required to specify an action that leads from a given state to one of its successors
@@ -68,17 +68,17 @@ You can think of a thunk generator as a generator of parsers that don't take int
 - **search**:<br>
 &nbsp;&nbsp;&nbsp;&nbsp; *queue_size: int -> ?max_depth: int -> My_problem.state -> <br>
 &nbsp;&nbsp;&nbsp;&nbsp; (My_problem.action * My_problem.state) list option*<br>
-`My_search.search ~queue_size:n s0` creates a double-ended priority queue that can hold up to `n` nodes, and uses the SMA\* algorithm to find a path leading from the initial state `s0` to a goal state. The return value is an option containing a list of pairs (actions and states) that describe the path that was found.
+`My_search.search ~queue_size:n s0` creates a double-ended priority queue that can hold up to `n` nodes, and uses the SMA\* algorithm to find a path leading from the initial state `s0` to a goal state. The return value is an option containing a list of *action* \* *state* pairs that describe the path that was found.
 
 **Make_with_queue**: *Typeof_Queue -> Typeof_Problem -> Typeof_Search*<br>
-`Make_with_queue (My_queue) (My_problem)` accepts a user-supplied queue module in addition to the problem. The queue is expected to inform nodes whenever their locations change and allow repositioning of any parent node whose f-cost has increased. (This happens when the known minimum f-cost of its successors increases.)
+`Make_with_queue (My_queue) (My_problem)` accepts a user-supplied queue module in addition to the problem. The queue is expected to inform nodes whenever their locations change and allow repositioning of any node whose f-cost has increased. (This happens when the known minimum f-cost of a parent's successors increases.)
 
 **Utils.Ascii_art**
 <br>
-utility functions for displaying the solution path on the command line
+utility functions for displaying ascii pictures on the command line
 - **print_row**: *int -> ('a -> string list) -> 'a list -> unit*<br>
 **print_rows**: *item_width: int -> items_per_row: int -> ('a -> string list) -> 'a list -> unit*<br>
-print one or more rows of ascii pictures. You can use these functions to display the solution path on the command line. An *('a -> string list)* argument passed to `print_row` or `print_rows` should return an ascii picture of its argument, represented as a list of character strings, one string per line. 
+print one or more rows of ascii pictures. You can use these functions to display the solution path. An *('a -> string list)* argument passed to `print_row` or `print_rows` should return an ascii picture of its argument, represented as a list of character strings, one string per line. 
 
 <br>
 copyright (c) 2021 Daniel S. Bensen
