@@ -183,10 +183,6 @@ module Node (Prob: Typeof_Problem) = struct
       min_stub_cost n.stubs;  
       min_dup_cost  n.dups ] |> L.concat_map Option.to_list |> L.min_opt
 
-   let[@inline] delete_child c =
-      let p = c.parent in 
-      p.fulls <- L.remove_object c p.fulls
-
    let[@inline] push_child c = let p = c.parent in p.fulls <- c :: p.fulls
 
    let[@inline] add_dup  p d = p.dups  <- insert_dup_by_cost  p.dups d
@@ -203,16 +199,27 @@ module Node (Prob: Typeof_Problem) = struct
       let    line0 = sprintf "id%d p%d d%d" n.id n.parent.id n.depth
       in let line1 = sprintf  "a%s g%d f%d" (Prob.string_of_action n.action) n.gcost n.fcost
       in
-      let line2 = sprintf "c%d s%d n%c"
+      let line2 = "c:" ^ L.(fold_left (fun s1 s2 -> s1^" "^s2) "" (map (fun c -> string_of_int c.id) n.fulls))
+      in
+      let line3 = sprintf "c%d s%d n%c L%d"
          (L.length n.fulls)
-         (L.length n.stubs) (if n.get_action_opt = None then 'n' else 'y')     
+         (L.length n.stubs) (if n.get_action_opt = None then 'n' else 'y') n.loc  
       in
       let state_lines = Prob.strings_of_state n.state
       in
-      line0::line1::line2::state_lines
-(*
+      line0::line1::line2::line3::state_lines
+
    let print n = L.iter print_endline (to_strings n)
-*)
+
+   let[@inline] delete_child c =
+      let p = c.parent in 
+      try
+         p.fulls <- L.remove_object c p.fulls
+      with _ -> begin
+         print c; print p;
+         failwith "delete_child"
+      end
+
 
 end
 
@@ -373,6 +380,11 @@ module Make_with_queue (Queue: Typeof_Queue)
       in
       let pop n = Q.pop n; if N.no_fulls n then delete n
       in
+      let insert_child c =
+         DB.add c.N.state c;
+         N.push_child c;
+         Q.insert c
+      in
       let rec do_next_stub p =
          let open N in
          match p.stubs with
@@ -387,13 +399,8 @@ module Make_with_queue (Queue: Typeof_Queue)
               end
               else if (not (ready_to_insert p x.scost))
               then pop p
-              else begin
-                 let n = of_stub p x in
-                 DB.add n.state n;
-                 push_child n;
-                 Q.insert n;
-	         update p
-              end
+              else (insert_child (of_stub p x);
+	            update p)
       in
       let do_next_dup p =
          match L.extract_if (fun d -> not (DB.mem d.N.dstate)) p.N.dups with
@@ -401,20 +408,14 @@ module Make_with_queue (Queue: Typeof_Queue)
           | Some (d,ds) -> if not (ready_to_insert p d.N.dcost)
                            then do_next_stub p
                            else begin
-                              let n = N.of_dup p d in
-                              DB.add d.N.dstate n;
                               p.dups <- ds;
-                              Q.insert n;
+                              insert_child (N.of_dup p d);
                               update p
                            end
       in
       let rec do_next_action p get_action =
          let try_db a s =
-            let add () =
-               let c = N.of_state p a s in
-               DB.add s c;
-               N.push_child c;
-               Q.insert c
+            let add () = insert_child (N.of_state p a s)
             in
             let cost = N.fcost_of_action p a in
             match DB.find_opt s with
