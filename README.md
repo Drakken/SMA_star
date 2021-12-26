@@ -25,3 +25,6 @@ See doc/USERS-GUIDE.md for details, and puzzle/puzzle.ml for an example.
     
     let path_opt = My_search.search ~queue_size:my_queue_size my_initial_state
 
+## History ##
+
+**2021 Dec 24** added state database to avoid duplicating states. 
