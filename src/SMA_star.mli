@@ -82,10 +82,10 @@ module type Typeof_Make =
   functor (Prob: Typeof_Problem) ->
     sig
       val search:
-        queue_size:int ->
-        ?max_depth:int ->
-        Prob.state ->
-        (Prob.action * Prob.state) list option
+        queue_size: int ->
+        ?max_depth: int ->
+        ?printing: bool ->
+        Prob.state -> (Prob.action * Prob.state) list option
     end
 
 module Make: Typeof_Make 

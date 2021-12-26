@@ -245,36 +245,36 @@ let print_stuff size
 *)
 
 let test ~queue_size =
- (* let n = demand_int "Board size? " 
-  in *) let module Puzl = Puzzle (Puzzle8_params)
-  in let module Search = SMA_star.Make (Puzl)
-  in
-  (* print_stuff size; *)
-  (* let _ = Puzl.make_random_board () in *)
-  print_endline "\nWe'll test the search code by solving an 8 puzzle with various parameters."
-  ;
-  let test_board root msg =
-    printf "\nStarting from %s:\n\n" msg;
-    Puzl.print_state root;
-    match Search.search ~queue_size root with
-     | None -> print_endline "No solution."
-     | Some path -> print_newline (); Puzl.print_path path;
-                    print_newline ()
-  in 
+   (* let n = demand_int "Board size? " 
+   in *) let module Puzl = Puzzle (Puzzle8_params)
+   in let module Search = SMA_star.Make (Puzl)
+   in
+   (* print_stuff size; *)
+   (* let _ = Puzl.make_random_board () in *)
+   print_endline "\nWe'll test the search code by solving an 8 puzzle."
+   ;
+   let test_board root msg =
+      printf "\nStarting from %s:\n\n" msg;
+      Puzl.print_state root;
+      match Search.search ~queue_size ~printing:true root with
+       | None -> print_endline "No solution."
+       | Some path -> print_newline (); Puzl.print_path path;
+                      print_newline ()
+   in 
 (*
-  let num_moves = 30 in
-
+   let test_random_moves num_moves =
+      test_board Puzl.(fold_times make_random_move solution num_moves)
+                 (sprintf "%d random moves away" num_moves)
+   in
   test_board Puzl.solution "an already solved board";
 
-  test_board Puzl.(make_random_move solution) "one move away";
+  test_random_moves 1;
+  test_random_moves 10;
 
-  test_board Puzl.(fold_times make_random_move solution num_moves) (sprintf "%d random moves away" num_moves);
-
-  test_board Puzl.(fold_times make_random_move solution   8) "18 random moves away";
 *)
   test_board Puzl.(make_random_board ()) "a 2-swap random board"
 
-;;test ~queue_size:62
+;;test ~queue_size:62  (* 62 is the maximum number of nodes forprinting the queue in a 16-nodes width *)
 
 
 

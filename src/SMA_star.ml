@@ -258,10 +258,10 @@ module type Typeof_Make =
    functor (Prob: Typeof_Problem) ->
     sig
       val search:
-         queue_size:int ->
-         ?max_depth:int ->
-         Prob.state ->
-         (Prob.action * Prob.state) list option
+         queue_size: int ->
+         ?max_depth: int ->
+         ?printing: bool ->
+         Prob.state -> (Prob.action * Prob.state) list option
     end
 
 
@@ -318,7 +318,7 @@ module Make_with_queue (Queue: Typeof_Queue)
               do_node (x::acc) p
       in do_node [] n
 
-   let search ~queue_size ?max_depth state =
+   let search ~queue_size ?max_depth ?(printing=false) state =
       let root = N.make_root state in
       let q = Q.make queue_size root in
       let ready_to_insert p cost = ready_to_insert_cd q (cost,(p.N.depth+1)) in
@@ -410,7 +410,6 @@ module Make_with_queue (Queue: Typeof_Queue)
                            else begin
                               p.dups <- ds;
                               insert_child (N.of_dup p d);
-                              (*update p*)
                            end
       in
       let rec do_next_action p get_action =
@@ -438,12 +437,17 @@ module Make_with_queue (Queue: Typeof_Queue)
                                      | None   -> do_next_dup p
       in
       let rec loop i n =
-         if i = 0 then (Q.print(); pause "\nPress return to continue.");
+         if printing && i = 0
+         then begin
+            print_endline "\nThe queue:";
+            Q.print();
+            pause "\nPress return to continue."
+         end;
          if Prob.is_goal n.N.state then Some (path n)
          else begin
             do_next_child n;
-            if i mod 100 = 99 then (print_char '.'; flush stdout);
-            otop q >>= loop ((i+1) mod 1000)
+            if printing && i mod 100 = 99 then (print_char '.'; flush stdout);
+            otop q >>= loop ((i+1) mod 10000)
          end
       in
       Q.insert root;
