@@ -1,4 +1,6 @@
 
+## SMA_star ##
+
 This is the README file for SMA_star, an OCaml implementation of the SMA* search algorithm.
 
 copyright (c) 2021 Daniel S. Bensen
