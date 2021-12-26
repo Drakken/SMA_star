@@ -51,7 +51,6 @@ end
 module Node (Prob: Typeof_Problem) = struct
 
    type stub = { scost: int; action: Prob.action }
-   type dup  = { dcost: int; action: Prob.action; dstate: Prob.state }
 
    type t = {
     id: int;
@@ -65,16 +64,13 @@ module Node (Prob: Typeof_Problem) = struct
     mutable get_action_opt: Prob.action Generator.t option;
     mutable fulls: t list;
     mutable stubs: stub list;
-    mutable  dups: dup  list;
    }
 
    let getloc n   = n.loc
    let setloc n i = n.loc <- i
 
    let to_stub n = recycle_id n.id; { scost = n.fcost; action = n.action }
-(*
-   let to_dup  n = recycle_id n.id; { dcost = n.fcost; action = n.action; dstate = n.state }
-*)
+
    let make_root state =
       let rec root = {
          id = new_id();
@@ -88,7 +84,6 @@ module Node (Prob: Typeof_Problem) = struct
          fcost = Prob.h_cost_to_goal state;
          fulls = [];
          stubs = [];
-         dups  = [];
        }
       in root
  
@@ -108,7 +103,6 @@ module Node (Prob: Typeof_Problem) = struct
       fcost;
       fulls = [];
       stubs = [];
-      dups  = [];
       get_action_opt = Some (Prob.make_action_generator state);
     }
 
@@ -117,9 +111,7 @@ module Node (Prob: Typeof_Problem) = struct
    let gcost p a = p.gcost + Prob.delta_g_cost_of_action p.state a
 
    let of_stub p {action;scost} =
-      let state = next_state p action in
-                                        make_child p action  state scost (gcost p action)
-   let of_dup p {action;dstate;dcost} = make_child p action dstate dcost (gcost p action)
+      make_child p action (next_state p action) scost (gcost p action)
 
    let state_of_action p a max_depth = 
       let s = next_state p a in
@@ -142,21 +134,19 @@ module Node (Prob: Typeof_Problem) = struct
 
    let[@inline] no_fulls n = n.fulls = []
    let[@inline] no_stubs n = n.stubs = []
-   let[@inline] no_dups  n = n.dups  = []
    let[@inline] no_nexts n = n.get_action_opt = None
 (*
    let[@inline] no_stubs_or_dups n = no_stubs n && no_dups n
 
    let[@inline] has_fulls n = n.fulls <> []
    let[@inline] has_stubs n = n.stubs <> []
-   let[@inline] has_dups  n = n.dups  <> []
    let[@inline] has_nexts n = n.get_action_opt <> None
 *)
-   let[@inline] has_fulls_only  n =  no_stubs n &&  no_nexts n &&  no_dups n
+   let[@inline] has_fulls_only  n =  no_stubs n &&  no_nexts n
 (*
-   let[@inline] has_no_children n =  no_stubs n &&  no_nexts n &&  no_dups n &&  no_fulls n
+   let[@inline] has_no_children n =  no_stubs n &&  no_nexts n &&  no_fulls n
 
-   let[@inline]    has_children n = has_stubs n || has_nexts n || has_dups n || has_fulls n
+   let[@inline]    has_children n = has_stubs n || has_nexts n || has_fulls n
 *)
    let insert_by_cost cost_of xs x =
       let rec ins rev_ys = function
@@ -168,10 +158,8 @@ module Node (Prob: Typeof_Problem) = struct
       ins [] xs
 
    let insert_stub_by_cost = insert_by_cost (fun s -> s.scost)
-   let insert_dup_by_cost  = insert_by_cost (fun d -> d.dcost)
 
    let min_stub_cost = function [] -> None | x::_ -> Some x.scost
-   let  min_dup_cost = function [] -> None | x::_ -> Some x.dcost
      
    let min_full_cost n = 
       match n.fulls with
@@ -180,17 +168,13 @@ module Node (Prob: Typeof_Problem) = struct
 
    let min_child_cost_opt n =
     [ min_full_cost n;
-      min_stub_cost n.stubs;  
-      min_dup_cost  n.dups ] |> L.concat_map Option.to_list |> L.min_opt
+      min_stub_cost n.stubs] |> L.concat_map Option.to_list |> L.min_opt
 
    let[@inline] push_child c = let p = c.parent in p.fulls <- c :: p.fulls
 
-   let[@inline] add_dup  p d = p.dups  <- insert_dup_by_cost  p.dups d
    let[@inline] add_stub p s = p.stubs <- insert_stub_by_cost p.stubs s
 
    let insert_stub c = add_stub c.parent (to_stub c)
-
-   let[@inline] insert_dup p d = p.dups <- insert_dup_by_cost p.dups d
 
    let    beats   a   b = a.fcost < b.fcost || (a.fcost = b.fcost && a.depth > b.depth)
    let cd_beats (c,d) b =    c    < b.fcost || (   c    = b.fcost &&   d     > b.depth)
@@ -282,15 +266,16 @@ module Make_with_queue (Queue: Typeof_Queue)
        | None -> invalid_arg "bottom: queue is empty"
 
    let rec
-      stubify_node q n = N.do_parent n (stubify_old_child q n)
-   and
-      stubify_old_child q c p = 
+      stubify_leaf_node q c p = 
          let open N in
          let p_had_fulls_only = has_fulls_only p in          (* not in the queue *)
          if p_had_fulls_only then assert (p.loc = 0);
          delete_child c;
          insert_stub c;
          if p_had_fulls_only then assert (try_to_insert_old q p)
+   and
+      stubify_node q n =
+         N.(if no_fulls n then do_parent n (stubify_leaf_node q n))
    and
       drop_and_try_old_again q n =
          Q.odrop q >>=! stubify_node q;
@@ -395,29 +380,17 @@ module Make_with_queue (Queue: Typeof_Queue)
               if DB.mem s (* DUPSWAP what if the stub is better? *)
               then begin
                  p.stubs <- xs;
-                 insert_dup p {dcost=x.scost;action=x.action;dstate=s};
                  do_next_stub p
               end
               else if ready_to_insert p x.scost
               then insert_child (of_stub p x)
               else pop p
       in
-      let do_next_dup p =
-         match L.extract_if (fun d -> not (DB.mem d.N.dstate)) p.N.dups with
-          | None -> do_next_stub p
-          | Some (d,ds) -> if not (ready_to_insert p d.N.dcost)
-                           then do_next_stub p
-                           else begin
-                              print_char 'd';
-                              p.dups <- ds;
-                              insert_child (N.of_dup p d);
-                           end
-      in
       let rec do_next_action p get_action =
          let try_db a s =
             let cost = N.fcost_of_action p a in
             match DB.find_opt s with
-             | Some _ -> N.add_dup p {action=a;dcost=cost;dstate=s}
+             | Some _ -> ()
              | None ->
                   if ready_to_insert p cost
                   then insert_child (N.of_state p a s)
@@ -435,7 +408,7 @@ module Make_with_queue (Queue: Typeof_Queue)
       in
       let do_next_child p =
          match p.N.get_action_opt with Some f -> do_next_action p f
-                                     | None   -> do_next_dup p
+                                     | None   -> do_next_stub p
       in
       let rec loop i n =
          if i = 0 && printing
