@@ -360,8 +360,8 @@ module Make_with_queue (Queue: Typeof_Queue)
          update n =             (* after all successors have been generated *)
             let open N in
             match min_child_cost_opt n with
-             | None -> if n.loc = 0 then delete n
-                       else Q.update n
+             | None -> if n.loc <> 0 then Q.update n
+                       else if no_nexts n then delete n
              | Some cmin ->
                if cmin > n.fcost then begin
                   n.fcost <- cmin;
@@ -372,6 +372,7 @@ module Make_with_queue (Queue: Typeof_Queue)
          delete n =
             let open N in
             assert (n.loc = 0); 
+    assert (n.id <> 40);
             delete_child n;
             recycle_id n.id;
             assert (DB.mem n.state);
@@ -397,10 +398,9 @@ module Make_with_queue (Queue: Typeof_Queue)
                  insert_dup p {dcost=x.scost;action=x.action;dstate=s};
                  do_next_stub p
               end
-              else if (not (ready_to_insert p x.scost))
-              then pop p
-              else (insert_child (of_stub p x);
-	            update p)
+              else if ready_to_insert p x.scost
+              then insert_child (of_stub p x)
+              else pop p
       in
       let do_next_dup p =
          match L.extract_if (fun d -> not (DB.mem d.N.dstate)) p.N.dups with
@@ -410,25 +410,18 @@ module Make_with_queue (Queue: Typeof_Queue)
                            else begin
                               p.dups <- ds;
                               insert_child (N.of_dup p d);
-                              update p
+                              (*update p*)
                            end
       in
       let rec do_next_action p get_action =
          let try_db a s =
-            let add () = insert_child (N.of_state p a s)
-            in
             let cost = N.fcost_of_action p a in
             match DB.find_opt s with
-             | None -> if ready_to_insert p cost
-                       then add ()
-                       else N.add_stub p {action=a;scost=cost}
              | Some _ -> N.add_dup p {action=a;dcost=cost;dstate=s}
-(*
-                       if cost >= n.fcost
-                         then N.add_dup p {action=a;dcost=cost;dstate=s}
-                         else (assert (ready_to_insert p cost);
-                               prune n; add ())
-*)
+             | None ->
+                  if ready_to_insert p cost
+                  then insert_child (N.of_state p a s)
+                  else N.add_stub p {action=a;scost=cost}
          in
          let try_state a =
             match N.state_of_action_opt p a max_depth with
