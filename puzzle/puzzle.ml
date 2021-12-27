@@ -191,9 +191,11 @@ module Puzzle (Params: Typeof_Params) = struct
       board.(n1) <- board.(n2);
       board.(n2) <- tmp;
       L.filter ((<>) n2) ns
-    (* in let rec swap2 ns =
-         if L.length ns >= 4 then swap2 (swap (swap ns)) *)      (* even permutations only! *)
-    in let swap2 ns = ignore (swap (swap ns))
+     in let rec swap2 ns =
+         if L.length ns >= 4 then swap2 (swap (swap ns))       (* even permutations only! *)
+(*
+    in let swap2 ns = ignore (swap (swap ns))  
+*)
     in swap2 (L.filter ((<>) solution.n0) (L.init length Fun.id))
     ; { n0 = solution.n0; board }
 
@@ -272,7 +274,7 @@ let test ~queue_size =
   test_random_moves 10;
 
 *)
-  test_board Puzl.(make_random_board ()) "a 2-swap random board"
+  test_board Puzl.(make_random_board ()) "a random board"
 
 ;;test ~queue_size:62  (* 62 is the maximum number of nodes forprinting the queue in a 16-nodes width *)
 

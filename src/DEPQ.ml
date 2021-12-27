@@ -180,6 +180,14 @@ module Make (E: Element.T) = struct
     then q.hi.:(1)
     else q.lo.:(1)
 
+  let top q =
+    let size = size q
+    in   if size > 1 then q.hi.:(1)
+    else if size = 0 then underflow()
+    else if hdiff q = 1
+    then q.hi.:(1)
+    else q.lo.:(1)
+
   let[@inline] otob fh q =
     let size = size q
     in   if size > 1 then Some (fh q).:(1)
@@ -188,11 +196,13 @@ module Make (E: Element.T) = struct
     then Some q.hi.:(1)
     else Some q.lo.:(1)
 
-  (* let  top q =  tob hhi q *)
+(*  let  top q =  tob hhi q *)
   let otop q = otob hhi q
 
   let  bottom q =  tob hlo q
   let obottom q = otob hlo q
+
+
 
   let clear q =
     H.clear q.hi;
@@ -310,14 +320,6 @@ module Make (E: Element.T) = struct
 
   let   pop q = if size q > 0 then  pop_raw q  else underflow()
   let  drop q = if size q > 0 then drop_raw q  else underflow()
-
-  let top q =
-    let size = size q
-    in   if size > 1 then q.hi.:(1)
-    else if size = 0 then underflow()
-    else if hdiff q = 1
-    then q.hi.:(1)
-    else q.lo.:(1)
 
   let opop q =
     if size q = 0 then None

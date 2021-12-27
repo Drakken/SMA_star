@@ -88,8 +88,8 @@ module Node (Prob: Typeof_Problem) = struct
       in root
  
    let do_parent n f =
-      let p = n.parent in
-      if p != n then f p        (* the root node is its own parent *)
+      let p = n.parent in      (* the root node is its own parent *)
+      if p != n then f p       (*       (don't do it twice)       *)
 
    let make_child parent action state fcost gcost = 
     {
@@ -132,32 +132,20 @@ module Node (Prob: Typeof_Problem) = struct
       let fcost = max p.fcost (gcost + Prob.h_cost_to_goal s)
       in make_child p a s fcost gcost
 
+   let[@inline] no_actions n = n.get_action_opt = None
+
    let[@inline] no_fulls n = n.fulls = []
    let[@inline] no_stubs n = n.stubs = []
-   let[@inline] no_nexts n = n.get_action_opt = None
-(*
-   let[@inline] no_stubs_or_dups n = no_stubs n && no_dups n
 
-   let[@inline] has_fulls n = n.fulls <> []
-   let[@inline] has_stubs n = n.stubs <> []
-   let[@inline] has_nexts n = n.get_action_opt <> None
-*)
-   let[@inline] has_fulls_only  n =  no_stubs n &&  no_nexts n
-(*
-   let[@inline] has_no_children n =  no_stubs n &&  no_nexts n &&  no_fulls n
+   let[@inline] has_fulls_only n = no_stubs n && no_actions n
 
-   let[@inline]    has_children n = has_stubs n || has_nexts n || has_fulls n
-*)
-   let insert_by_cost cost_of xs x =
-      let rec ins rev_ys = function
-       | y::ys as xs -> if cost_of x <= cost_of y
-                        then L.rev_append rev_ys (x::xs)
-                        else ins (y :: rev_ys) ys
-       | [] -> L.rev_append rev_ys [x]
-      in
-      ins [] xs
-
-   let insert_stub_by_cost = insert_by_cost (fun s -> s.scost)
+   let insert_stub_by_cost xs x =
+      let rec ins revs = function
+       | [] -> L.rev_append revs [x]
+       | y::ys as yys -> if x.scost <= y.scost
+                         then L.rev_append revs (x::yys)
+                         else ins (y :: revs) ys
+      in ins [] xs
 
    let min_stub_cost = function [] -> None | x::_ -> Some x.scost
      
@@ -170,7 +158,7 @@ module Node (Prob: Typeof_Problem) = struct
     [ min_full_cost n;
       min_stub_cost n.stubs] |> L.concat_map Option.to_list |> L.min_opt
 
-   let[@inline] push_child c = let p = c.parent in p.fulls <- c :: p.fulls
+   let[@inline] push_full c = let p = c.parent in p.fulls <- c :: p.fulls
 
    let[@inline] add_stub p s = p.stubs <- insert_stub_by_cost p.stubs s
 
@@ -191,18 +179,11 @@ module Node (Prob: Typeof_Problem) = struct
       let state_lines = Prob.strings_of_state n.state
       in
       line0::line1::line2::line3::state_lines
-
+(*
    let print n = L.iter print_endline (to_strings n)
-
-   let[@inline] delete_child c =
-      let p = c.parent in 
-      try
-         p.fulls <- L.remove_object c p.fulls
-      with _ -> begin
-         print c; print p;
-         failwith "delete_child"
-      end
-
+*)
+   let[@inline] delete_full c =
+      let p = c.parent in p.fulls <- L.remove_object c p.fulls
 
 end
 
@@ -220,10 +201,10 @@ module type Typeof_Queue = sig
 
     val insert: t -> element -> unit
 
-    val otop:    t -> element option
-    val  pop:    t -> element
-    val odrop:   t -> element option
-    val obottom: t -> element option
+    val  top:   t -> element
+    val  pop:   t -> element
+    val drop:   t -> element
+    val bottom: t -> element
 
     val is_full: t -> bool
 
@@ -256,45 +237,6 @@ module Make_with_queue (Queue: Typeof_Queue)
    module N = Node (Prob)
    module Q = Queue.Make (N)
 
-   let otop q = Q.otop q (* try Some (Q.top q) with _ -> None *)
-
-   let[@inline] not_full q = not (Q.is_full q)
-
-   let bottom q =
-      match Q.obottom q with
-       | Some x -> x
-       | None -> invalid_arg "bottom: queue is empty"
-
-   let rec
-      stubify_leaf_node q c p = 
-         let open N in
-         let p_had_fulls_only = has_fulls_only p in          (* not in the queue *)
-         if p_had_fulls_only then assert (p.loc = 0);
-         delete_child c;
-         insert_stub c;
-         if p_had_fulls_only then assert (try_to_insert_old q p)
-   and
-      stubify_node q n =
-         N.(if no_fulls n then do_parent n (stubify_leaf_node q n))
-   and
-      drop_and_try_old_again q n =
-         Q.odrop q >>=! stubify_node q;
-         try_to_insert_old q n
-   and
-      try_to_insert_old q n =
-         if not_full q then (Q.insert q n; true)
-         else if N.beats n (bottom q) then drop_and_try_old_again q n
-         else (stubify_node q n; false)
-
-   let rec ready_to_insert_cd q cd =
-      not_full q ||
-      begin N.cd_beats cd (bottom q)
-            && match Q.odrop q with
-                | None -> failwith "couldn't drop q"
-                | Some n -> stubify_node q n;
-                            ready_to_insert_cd q cd
-      end
-
    let path n =
       let rec do_node acc n =
          let p = n.N.parent in
@@ -303,50 +245,89 @@ module Make_with_queue (Queue: Typeof_Queue)
               do_node (x::acc) p
       in do_node [] n
 
-   let search ~queue_size ?max_depth ?(printing=false) state =
-      let root = N.make_root state in
-      let q = Q.make queue_size root in
-      let ready_to_insert p cost = ready_to_insert_cd q (cost,(p.N.depth+1)) in
-      let db = HT.create queue_size in
+
+   let search ~queue_size
+              ?(max_depth = queue_size - 1)
+              ?(printing = false)
+              initial_state
+      =
+      if max_depth >= queue_size
+         then invalid_arg "search: max_depth must be less than queue_size"
+      else
       let module DB = struct
+         let db = HT.create queue_size
          let mem s = HT.mem db s
          let add s n = HT.add db s n
          let remove s = HT.remove db s
          let find_opt s = HT.find_opt db s
-      end in
-      DB.add state root;
-      let max_depth =
-         match max_depth with
-          | None -> queue_size - 1
-          | Some d -> if d < queue_size then d
-                      else invalid_arg "max depth exceeds queue size"
+      end
+      in let root = N.make_root initial_state
       in
       let module Q = struct
          open N
+         let q = Q.make queue_size root
          let print () = Q.print q
          let update n = Q.update q n.loc
+         let otop () = try Some (Q.top q) with _ -> None
          let pop n = assert (Q.pop q == n)
+         let drop () = Q.drop q
+         let bottom () = Q.bottom q
+         let not_full () = not (Q.is_full q)
 (*         let eject n = Q.eject q n
 *)
          let insert n = Q.insert q n
-      end in
+      end
 (*
          let rec prune n =
             L.iter prune n.fulls;
             assert (DB.mem n.state);
             DB.remove n.state;
             Q.eject n;
-            delete_child n;
+            delete_full n;
             recycle_id n.id;
             do_parent n update
       in
 *)
+      in
+      let delete_child_node c =
+         let open N in
+         assert (c.loc = 0);
+         delete_full c;
+         assert (DB.mem c.state);
+         DB.remove      c.state;
+         recycle_id c.id
+      in
+      let rec
+         stubify_leaf_node c p = 
+            let open N in
+            let p_had_fulls_only = has_fulls_only p in          (* not in the queue *)
+            if p_had_fulls_only then assert (p.loc = 0);
+            delete_child_node c;
+            insert_stub c;
+            if p_had_fulls_only then assert (try_to_insert_old p)
+      and
+         try_to_stubify n = N.(if no_fulls n then do_parent n (stubify_leaf_node n))
+      and
+         drop_and_try_again n = try_to_stubify (Q.drop()); try_to_insert_old n
+      and
+         try_to_insert_old n =
+            if Q.not_full() then (Q.insert n; true)
+            else if N.beats n (Q.bottom()) then drop_and_try_again n
+            else (try_to_stubify n; false)
+      in
+      let ready_to_insert_new p cost = 
+         let cd = (cost,(p.N.depth+1)) in
+         let rec ready() =
+            Q.not_full() || (N.cd_beats cd (Q.bottom())
+                             && (try_to_stubify (Q.drop()); ready()))
+         in ready() 
+      in
       let rec
          update n =             (* after all successors have been generated *)
             let open N in
             match min_child_cost_opt n with
              | None -> if n.loc <> 0 then Q.update n
-                       else if no_nexts n then delete n
+                       else if no_actions n then delete n
              | Some cmin ->
                if cmin > n.fcost then begin
                   n.fcost <- cmin;
@@ -354,21 +335,13 @@ module Make_with_queue (Queue: Typeof_Queue)
                   do_parent n update
                end
       and 
-         delete n =
-            let open N in
-            assert (n.loc = 0); 
-    assert (n.id <> 40);
-            delete_child n;
-            recycle_id n.id;
-            assert (DB.mem n.state);
-            DB.remove n.state;
-            do_parent n update
+         delete n = delete_child_node n; N.do_parent n update
       in
       let pop n = Q.pop n; if N.no_fulls n then delete n
       in
       let insert_child c =
          DB.add c.N.state c;
-         N.push_child c;
+         N.push_full c;
          Q.insert c
       in
       let rec do_next_stub p =
@@ -382,7 +355,7 @@ module Make_with_queue (Queue: Typeof_Queue)
                  p.stubs <- xs;
                  do_next_stub p
               end
-              else if ready_to_insert p x.scost
+              else if ready_to_insert_new p x.scost
               then insert_child (of_stub p x)
               else pop p
       in
@@ -392,7 +365,7 @@ module Make_with_queue (Queue: Typeof_Queue)
             match DB.find_opt s with
              | Some _ -> ()
              | None ->
-                  if ready_to_insert p cost
+                  if ready_to_insert_new p cost
                   then insert_child (N.of_state p a s)
                   else N.add_stub p {action=a;scost=cost}
          in
@@ -404,6 +377,7 @@ module Make_with_queue (Queue: Typeof_Queue)
          match get_action () with
           | Some a -> try_state a
           | None -> p.get_action_opt <- None;    (* last child was generated in prev. call *)
+                  (*   if has_fulls_only p then pop p; *)
                     update p
       in
       let do_next_child p =
@@ -421,9 +395,10 @@ module Make_with_queue (Queue: Typeof_Queue)
          else begin
             do_next_child n;
             if printing && i mod 100 = 99 then (print_char '.'; flush stdout);
-            otop q >>= loop ((i+1) mod 10000)
+            Q.otop() >>= loop ((i+1) mod 10000)
          end
       in
+      DB.add initial_state root;
       Q.insert root;
       loop 0 root
 
