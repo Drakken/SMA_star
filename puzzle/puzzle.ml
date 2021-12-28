@@ -82,7 +82,7 @@ module Puzzle (Params: Typeof_Params) = struct
     | Above -> "A"
     | Below -> "B"
     | Right -> "R"
-    | Left  -> ""
+    | Left  -> "L"
 
   let long_string_of_action = function
     | Above -> "Above"

@@ -179,9 +179,9 @@ module Node (Prob: Typeof_Problem) = struct
       let state_lines = Prob.strings_of_state n.state
       in
       line0::line1::line2::line3::state_lines
-(*
+
    let print n = L.iter print_endline (to_strings n)
-*)
+
    let[@inline] delete_full c =
       let p = c.parent in p.fulls <- L.remove_object c p.fulls
 
@@ -301,7 +301,8 @@ module Make_with_queue (Queue: Typeof_Queue)
          stubify_leaf_node c p = 
             let open N in
             let p_had_fulls_only = has_fulls_only p in          (* not in the queue *)
-            if p_had_fulls_only then assert (p.loc = 0);
+            if p_had_fulls_only && (p.loc <> 0)
+            then (N.print p; N.print c; failwith "stubify_leaf_node: p.loc <> 0");
             delete_child_node c;
             insert_stub c;
             if p_had_fulls_only then assert (try_to_insert_old p)
@@ -329,11 +330,11 @@ module Make_with_queue (Queue: Typeof_Queue)
              | None -> if n.loc <> 0 then Q.update n
                        else if no_actions n then delete n
              | Some cmin ->
-               if cmin > n.fcost then begin
-                  n.fcost <- cmin;
-                  if n.loc <> 0 then Q.update n;
-                  do_parent n update
-               end
+                  if cmin > n.fcost then begin
+                     n.fcost <- cmin;
+                     if n.loc <> 0 then Q.update n;
+                     do_parent n update
+                  end
       and 
          delete n = delete_child_node n; N.do_parent n update
       in
@@ -377,7 +378,7 @@ module Make_with_queue (Queue: Typeof_Queue)
          match get_action () with
           | Some a -> try_state a
           | None -> p.get_action_opt <- None;    (* last child was generated in prev. call *)
-                  (*   if has_fulls_only p then pop p; *)
+                    if N.has_fulls_only p then Q.pop p;
                     update p
       in
       let do_next_child p =
