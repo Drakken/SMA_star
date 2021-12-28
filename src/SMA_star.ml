@@ -66,8 +66,8 @@ module Node (Prob: Typeof_Problem) = struct
     mutable stubs: stub list;
    }
 
-   let getloc n   = n.loc
-   let setloc n i = n.loc <- i
+   let[@inline] getloc n   = n.loc
+   let[@inline] setloc n i = n.loc <- i
 
    let to_stub n = recycle_id n.id; { scost = n.fcost; action = n.action }
 
@@ -268,16 +268,14 @@ module Make_with_queue (Queue: Typeof_Queue)
          let q = Q.make queue_size root
          let print () = Q.print q
          let update n = Q.update q n.loc
-         let otop () = try Some (Q.top q) with _ -> None
+         let top () = Q.top q
          let pop n = assert (Q.pop q == n)
          let drop () = Q.drop q
          let bottom () = Q.bottom q
          let not_full () = not (Q.is_full q)
-(*         let eject n = Q.eject q n
-*)
          let insert n = Q.insert q n
-      end
 (*
+         let eject n = Q.eject q n        (* DUPSWAP *)
          let rec prune n =
             L.iter prune n.fulls;
             assert (DB.mem n.state);
@@ -286,8 +284,8 @@ module Make_with_queue (Queue: Typeof_Queue)
             delete_full n;
             recycle_id n.id;
             do_parent n update
-      in
 *)
+      end
       in
       let delete_child_node c =
          let open N in
@@ -301,7 +299,7 @@ module Make_with_queue (Queue: Typeof_Queue)
          stubify_leaf_node c p = 
             let open N in
             let p_had_fulls_only = has_fulls_only p in          (* not in the queue *)
-            if p_had_fulls_only && (p.loc <> 0)
+            if p_had_fulls_only && p.loc <> 0
             then (N.print p; N.print c; failwith "stubify_leaf_node: p.loc <> 0");
             delete_child_node c;
             insert_stub c;
@@ -352,10 +350,7 @@ module Make_with_queue (Queue: Typeof_Queue)
           | x::xs ->
               let s = state_of_action p x.action max_depth in
               if DB.mem s (* DUPSWAP what if the stub is better? *)
-              then begin
-                 p.stubs <- xs;
-                 do_next_stub p
-              end
+              then (p.stubs <- xs; do_next_stub p)
               else if ready_to_insert_new p x.scost
               then insert_child (of_stub p x)
               else pop p
@@ -364,7 +359,7 @@ module Make_with_queue (Queue: Typeof_Queue)
          let try_db a s =
             let cost = N.fcost_of_action p a in
             match DB.find_opt s with
-             | Some _ -> ()
+             | Some _ -> ()    (* DUPSWAP *)
              | None ->
                   if ready_to_insert_new p cost
                   then insert_child (N.of_state p a s)
@@ -396,12 +391,12 @@ module Make_with_queue (Queue: Typeof_Queue)
          else begin
             do_next_child n;
             if printing && i mod 100 = 99 then (print_char '.'; flush stdout);
-            Q.otop() >>= loop ((i+1) mod 10000)
+            loop ((i+1) mod 10000) (Q.top())
          end
       in
       DB.add initial_state root;
       Q.insert root;
-      loop 0 root
+      try loop 0 root with _ -> None
 
 end
 
