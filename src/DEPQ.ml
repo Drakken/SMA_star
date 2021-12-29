@@ -23,32 +23,32 @@ let page_width = 200
 
 module Make (E: Element.T) = struct
 
-  type element = E.t
+   type element = E.t
 
-  module Heap = struct
+   module Heap = struct
 
-    type t = {
+      type t = {
                array: element array;
                sign: int;
                mutable size: int;
                beats: element -> element -> bool;
              }
 
-    let make max x sign beats = { array = Array.make max x; sign; size = 0; beats }
+      let make max x sign beats = { array = Array.make max x; sign; size = 0; beats }
 
-    let max h = Array.length h.array
+      let max h = Array.length h.array
 
-    let[@inline] incr h = h.size <- h.size + 1
-    let[@inline] decr h = h.size <- h.size - 1
+      let[@inline] incr h = h.size <- h.size + 1
+      let[@inline] decr h = h.size <- h.size - 1
 
-    let clear h = h.size <- 0
+      let clear h = h.size <- 0
 
-    let[@inline] ( .:()   ) h n   = h.array.(n-1)
-    let[@inline] ( .:()<- ) h n x = h.array.(n-1) <- x
+      let[@inline] ( .:()   ) h n   = h.array.(n-1)
+      let[@inline] ( .:()<- ) h n x = h.array.(n-1) <- x
 
-    let[@inline] setloc x h n = E.setloc x (h.sign * n)
+      let[@inline] setloc x h n = E.setloc x (h.sign * n)
 
-    let[@inline] setloc0 x = E.setloc x 0
+      let[@inline] setloc0 x = E.setloc x 0
 
     let verify h n msg =
       let s = h.size in
@@ -136,7 +136,7 @@ module Make (E: Element.T) = struct
       in let width = page_width / nmin
       in Ascii_art.print_row width E.to_strings nodes
 
-    let print h f =
+    let print_heap h f =
       if h.size > 0 then begin
         printf "size = %d\n" h.size;
         let num_rows = 1 + intlog2 h.size in
@@ -152,8 +152,8 @@ module Make (E: Element.T) = struct
   type t = { hi: H.t; lo: H.t }
 
   let print q =
-    H.print q.hi Fun.id;
-    H.print q.lo L.rev
+    H.print_heap q.hi Fun.id;
+    H.print_heap q.lo L.rev
 
   let make max x =
     let n = (max+1)/2 in
@@ -201,8 +201,6 @@ module Make (E: Element.T) = struct
 
   let  bottom q =  tob hlo q
   let obottom q = otob hlo q
-
-
 
   let clear q =
     H.clear q.hi;
@@ -269,7 +267,7 @@ module Make (E: Element.T) = struct
     | 1,0 -> ()
     | sa,sb ->
         if sa = sb then swap na
-        else if sb - sa = 1 then        (* a is the upper heap in the ascii art *)
+        else if sb - sa = 1 then       (* a is the upper (smaller) heap in the ascii art *)
         begin
           let pb = n_parent sb in
           if na > pb then swap na
@@ -278,11 +276,10 @@ module Make (E: Element.T) = struct
           then swap (n_left  na)           (*    see ascii art for details     *)
           else swap (n_right na)
         end
-        else if sa - sb = 1 then        (* a is the lower heap in the ascii art *)
+        else if sa - sb = 1 then       (* a is the lower (bigger) heap in the ascii art *)
         begin
-          if na > (n_parent sa) then swap na
-          else if na = sa   
-          then swap (n_parent na)
+          if na = sa then swap (n_parent na)
+          else if na > (n_parent sa) then swap na
         end
         else invalid_arg (sprintf "Q.maybe_swap: a.size - b.size = %d" (sa - sb))
 
@@ -296,15 +293,20 @@ module Make (E: Element.T) = struct
   (* pop & drop: if there's an extra element in the *)
   (*  other heap, move it to the heap being popped  *)
 
-  let pop_raw q =
-    let open H in
-    if hdiff q = -1 then
-    begin
-      let n = q.lo.size in
-      if n > 1 then assert (not (q.hi.beats q.lo.:(n) q.hi.:(n_parent n)));
-      H.hop q.lo q.hi
-    end;
-    pop_n_swap q.hi q.lo  
+   let pop_raw q =
+      let open H in
+      if hdiff q = -1 then
+      begin
+         let n = q.lo.size in
+(*
+         if n > 1 then assert (not (q.hi.beats q.lo.:(n) q.hi.:(n_parent n)));
+*)
+         if n > 1 && (q.hi.beats q.lo.:(n) q.hi.:(n_parent n))
+         then (print q; failwith "pop_raw: lo beats hi");
+
+         H.hop q.lo q.hi
+      end;
+      pop_n_swap q.hi q.lo  
 
 
   let drop_raw q =
@@ -337,10 +339,10 @@ module Make (E: Element.T) = struct
     else let n1 = H.update q.hi loc
     in maybe_swap q.hi n1 q.lo
 
-  let element_of_loc q n =
+  let element_at q n =
     if      n>0 then q.hi.:(n)
     else if n<0 then q.lo.:(-n)
-    else invalid_arg "Q.element_of_loc: loc = 0"
+    else invalid_arg "Q.element_at 0"
 
 end
 

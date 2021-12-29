@@ -139,6 +139,8 @@ module Node (Prob: Typeof_Problem) = struct
 
    let[@inline] has_fulls_only n = no_stubs n && no_actions n
 
+   let[@inline] has_fulls n = n.fulls <> []
+
    let insert_stub_by_cost xs x =
       let rec ins revs = function
        | [] -> L.rev_append revs [x]
@@ -210,7 +212,7 @@ module type Typeof_Queue = sig
 
     val update: t -> int -> unit
 
-    val element_of_loc: t -> int -> element
+    val element_at: t -> int -> element
 
     val print: t -> unit
 
@@ -266,7 +268,9 @@ module Make_with_queue (Queue: Typeof_Queue)
       let module Q = struct
          open N
          let q = Q.make queue_size root
+(*
          let print () = Q.print q
+*)
          let update n = Q.update q n.loc
          let top () = Q.top q
          let pop n = assert (Q.pop q == n)
@@ -346,7 +350,7 @@ module Make_with_queue (Queue: Typeof_Queue)
       let rec do_next_stub p =
          let open N in
          match p.stubs with
-          | [] -> pop p          (* immediately after actions run out *)
+          | [] -> pop p         (* immediately after actions run out *)
           | x::xs ->
               let s = state_of_action p x.action max_depth in
               if DB.mem s (* DUPSWAP what if the stub is better? *)
@@ -373,8 +377,9 @@ module Make_with_queue (Queue: Typeof_Queue)
          match get_action () with
           | Some a -> try_state a
           | None -> p.get_action_opt <- None;    (* last child was generated in prev. call *)
-                    if N.has_fulls_only p then Q.pop p;
-                    update p
+                    if N.no_stubs p then Q.pop p;
+                    if N.has_fulls p then update p
+                    else if N.no_stubs p then delete p
       in
       let do_next_child p =
          match p.N.get_action_opt with Some f -> do_next_action p f
@@ -383,8 +388,10 @@ module Make_with_queue (Queue: Typeof_Queue)
       let rec loop i n =
          if i = 0 && printing
          then begin
+(*
             print_endline "\nThe queue:";
             Q.print();
+*)
             pause "\nPress return to continue."
          end;
          if Prob.is_goal n.N.state then Some (path n)
@@ -396,7 +403,8 @@ module Make_with_queue (Queue: Typeof_Queue)
       in
       DB.add initial_state root;
       Q.insert root;
-      try loop 0 root with _ -> None
+     (* try loop 0 root with _ -> None *)
+      loop 0 root 
 
 end
 

@@ -38,7 +38,7 @@ module Make (E: Element.T): sig
 
   val update: t -> int -> unit
 
-  val element_of_loc: t -> int -> element
+  val element_at: t -> int -> element
 
   val print: t -> unit
 

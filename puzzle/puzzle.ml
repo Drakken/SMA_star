@@ -180,8 +180,8 @@ module Puzzle (Params: Typeof_Params) = struct
       else find (n+1)
     in find 0
 
-  let make_random_board () =
-    let board = A.copy solution.board
+  let make_random_copy x =
+    let board = A.copy x.board
     in let swap ns =
       let len = L.length ns in
       let n1 = L.nth ns (Random.int len) in
@@ -196,8 +196,8 @@ module Puzzle (Params: Typeof_Params) = struct
 (*
     in let swap2 ns = ignore (swap (swap ns))  
 *)
-    in swap2 (L.filter ((<>) solution.n0) (L.init length Fun.id))
-    ; { n0 = solution.n0; board }
+    in swap2 (L.filter ((<>) x.n0) (L.init length Fun.id))
+    ; make_random_move { n0 = x.n0; board }
 
   let string_of_rowcol r c = sprintf "(%d,%d)" (r+1) (c+1)
 
@@ -274,32 +274,12 @@ let test ~queue_size =
   test_random_moves 10;
 
 *)
-  test_board Puzl.(make_random_board ()) "a random board"
+  let b0 = Puzl.solution in
+  let b1 = Puzl.make_random_copy b0 in test_board b1           "a random board";
+  let b2 = Puzl.make_random_copy b1 in test_board b2 "a different random board"
 
-;;test ~queue_size:62  (* 62 is the maximum number of nodes forprinting the queue in a 16-nodes width *)
+;;test ~queue_size:100  (* 62 is the maximum number of nodes forprinting the queue in a 16-nodes width *)
 
-
-
-(*
-
-let print_rows r boards =
-  let space_width = 3
-  in let num_boards = L.length boards
-  in let num_chars = num_boards * !size + (num_boards - 1) * space_width
-  in let board_str = String.make num_chars ' '
-  in let print_row nb nr =
-       let n0 = index (r,0)
-       in for i = 0 to (!size - 1) do print_tile (board.(n_empty+i)) done
-  ; print_newline()
-
-let print_boards boards =
-  for i = 0 to (!size - 1) do print_rows i boards done
-
-;; print_board (make_random_board 3)
-;; print_board (make_random_board 3)
-;; print_board (make_random_board 3)
-;; print_board (make_random_board 3)
-*)
 
 
 

@@ -70,7 +70,7 @@ module type Typeof_Queue = sig
           val bottom: t -> element
           val is_full: t -> bool
           val update: t -> int -> unit
-          val element_of_loc: t -> int -> element
+          val element_at: t -> int -> element
           val print: t -> unit
         end
 end
